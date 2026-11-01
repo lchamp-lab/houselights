@@ -107,7 +107,7 @@
     <string name="home_state_tmdb_refused">Chiave rifiutata</string>
     <string name="home_state_tmdb_offline">Non raggiungibile</string>
     <string name="home_scan_running">In corso…</string>
-    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="episode_code">S%1$d E%2$s</string>
     <string name="home_open_title">Apri la scheda</string>
     <plurals name="home_news_week">
         <item quantity="one">%d questa settimana</item>

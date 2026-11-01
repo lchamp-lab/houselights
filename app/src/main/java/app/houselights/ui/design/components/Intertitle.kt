@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
@@ -34,8 +35,13 @@ internal fun Intertitle(
         Spacer(Modifier.height(HlSpace.m))
         Text(title, style = Hl.type.subject, color = c.content)
         if (message != null) {
-            Spacer(Modifier.height(HlSpace.xs))
-            Text(message, style = Hl.type.body, color = c.contentSecondary, modifier = Modifier.widthIn(max = HlLayout.readableNarrow))
+            // Its first baseline a title's line under the title's.
+            Text(
+                message,
+                style = Hl.type.body,
+                color = c.contentSecondary,
+                modifier = Modifier.widthIn(max = HlLayout.readableNarrow).paddingFromBaseline(top = sentenceUnder(Hl.type.subject)),
+            )
         }
         if (actions != null) {
             Spacer(Modifier.height(HlSpace.l))

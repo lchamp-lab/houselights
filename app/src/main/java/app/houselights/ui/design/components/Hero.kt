@@ -32,24 +32,27 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.timeLeft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * The focused title atop « À regarder » and a person's page: logo or name, a line of facts (an episode's number and
- * name), then progress and time left or two lines of overview; changes with its picture ([WithItsPicture]). A change
- * its card's options asked that was not saved ([notSaved]) is said in the facts' place, by the attention mark.
+ * The focused title atop « À regarder » and a person's page, in its band ([HeroDefaults.band]) and standing on its foot:
+ * logo or name, a line of facts (an episode's number and name), then progress and time left or two lines of overview;
+ * changes with its picture ([WithItsPicture]). A change its card's options asked that was not saved ([notSaved]) is
+ * said in the facts' place, by the attention mark.
  */
 @Composable
 fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? = null) {
-    // The hero keeps its height, so nothing re-measures as the title changes.
-    WithItsPicture(item, modifier) { shown ->
-        Column(Modifier.widthIn(max = HlLayout.readableNarrow), verticalArrangement = Arrangement.Bottom) {
+    // The hero keeps its height, so nothing re-measures as the title changes; what it lacks leaves room above it.
+    WithItsPicture(item, modifier.height(HeroDefaults.band), Alignment.BottomStart) { shown ->
+        Column(Modifier.widthIn(max = HlLayout.readableNarrow)) {
             val episode = shown.kind == MediaKind.EPISODE
             TitleArt(
                 title = shown.headTitle,
@@ -59,13 +62,13 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
                 style = Hl.type.headline,
                 maxLines = 1,
             )
-            Spacer(Modifier.height(HlSpace.s))
+            Spacer(Modifier.height(HlGap.inBlock))
             when {
                 notSaved != null && shown.id == item?.id -> HlStatus(StatusState.Attention, notSaved, maxLines = 1)
-                episode -> EpisodeHeading(shown.episodeLabel, shown.title, style = Hl.type.entry)
+                episode -> EpisodeHeading(shown.episodeCode(), shown.title, style = Hl.type.entry)
                 else -> MetaLine(shown, showGenres = false)
             }
-            Spacer(Modifier.height(HlSpace.s))
+            Spacer(Modifier.height(HlGap.inBlock))
             if (shown.progress > 0f) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ProgressLine(shown.progress, Modifier.width(HlSize.heroProgress), thickness = HlSize.heroProgressWeight)
@@ -77,7 +80,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
                     shown.overview,
                     style = Hl.type.body,
                     color = Hl.colors.contentSecondary,
-                    maxLines = HERO_OVERVIEW_LINES,
+                    maxLines = HeroDefaults.OVERVIEW_LINES,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -87,10 +90,16 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
 
 /**
  * Shows [content] for [item] once the backdrop settles on its picture ([LocalBackdropSettled]), at most
- * [HlMotion.HOLD] later, so text never shows over the previous picture; one crossfade, no re-measure.
+ * [HlMotion.HOLD] later, so text never shows over the previous picture; one crossfade, no re-measure. Each title
+ * stands at [alignment] in [modifier]'s box.
  */
 @Composable
-fun WithItsPicture(item: MediaItem?, modifier: Modifier = Modifier, content: @Composable (MediaItem) -> Unit) {
+fun WithItsPicture(
+    item: MediaItem?,
+    modifier: Modifier = Modifier,
+    alignment: Alignment = Alignment.TopStart,
+    content: @Composable (MediaItem) -> Unit,
+) {
     val named = rememberNamed(item)
     val transition = updateTransition(named?.id, label = "named")
     // The latest version of each composed title by id: leaving, shown, or waiting for its picture.
@@ -108,7 +117,7 @@ fun WithItsPicture(item: MediaItem?, modifier: Modifier = Modifier, content: @Co
                 ) { if (it == id) 1f else 0f }
                 // Only the target title is exposed to accessibility; the others are fading in or out.
                 val said = if (id == transition.targetState) Modifier else Modifier.clearAndSetSemantics {}
-                Box(Modifier.graphicsLayer { this.alpha = alpha.value }.then(said)) {
+                Box(Modifier.align(alignment).graphicsLayer { this.alpha = alpha.value }.then(said)) {
                     latest[id]?.let { content(it) }
                 }
             }
@@ -132,10 +141,7 @@ private fun rememberNamed(item: MediaItem?): MediaItem? {
     return if (item != null && item.id == named?.id) item else named
 }
 
-/** Overview lines in a browsing hero: enough to recognise a film; the rest is on its page. */
-private const val HERO_OVERVIEW_LINES = 2
-
-/** "S1 E3" then the episode's name, aligned on their baseline; the name in [style]. */
+/** "S1 É3" then the episode's name, aligned on their baseline; the name in [style]. */
 @Composable
 fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.lead) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {

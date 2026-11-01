@@ -3,6 +3,7 @@ package app.houselights.ui.design
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -50,22 +51,85 @@ object HlShapes {
     val sheet = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
 }
 
-/** Inner padding of containers by kind, so the same kind of thing breathes the same everywhere. */
+/**
+ * Inner padding of containers, four steps, so the same kind of thing breathes the same everywhere: [tight] 8, [plate]
+ * 20, [card] 24, [sheet] 32. A menu's 6 and a group's 4 follow from radii ([HlMenuDefaults], [HlSettingGroupDefaults]).
+ * Words over a picture keep the inset of what holds them: a door's band [HlSpace.s], the case [HlSpace.m], a showcase
+ * among a pane's plates [plate], a saga's open panel [card].
+ */
 object HlInset {
     /** Results holding a thumbnail. */
     val tight = HlSpace.xs
-    /** Panels and cards. */
+
+    /**
+     * Words from the sides of any plate, whatever it holds (facts, definitions, a status, a table, glass read through, a
+     * code, a showcase's posters): where a group's rows set theirs, so text keeps one edge down a pane; a status's state
+     * from its top.
+     */
+    val plate = 20.dp
+
+    /** Panels and cards all round; a plate's top and foot; words over a saga's open panel. */
     val card = HlSpace.l
     val sheet = HlSpace.xl
+}
 
-    /** A group's plate around its rows: [HlShapes.panel] less [HlShapes.row], so their corners stay parallel. */
-    val group = HlSpace.xxs
+/**
+ * Gaps named by the relation they set (DESIGN.md, Layout), read by components and screens instead of a step of
+ * [HlSpace]: the same relation keeps the same gap from one screen to the next. Box to box (`Trim.Both`) unless said.
+ */
+object HlGap {
+    /** A name to its note on one line: a setting's description, a role under a portrait. */
+    val nameToNote = HlSpace.xxs
 
-    /** A plate of facts ([FactPlate]) from its top and foot, so its words sit as a group's rows do; its sides keep [card]. */
-    val plate = HlSpace.l
+    /** A name to a note that may wrap: wider than the note's own lines, so it never lifts off its name. */
+    val nameToNoteWrapped = HlSpace.xs
 
-    /** A plate read in a sheet ([ReadingPlate], a technical sheet's block): its words from its sides; a status's from its top. */
-    val reading = HlSpace.fact
+    /** A label over its value (a plate's fact, the settings door's state). */
+    val labelToValue = HlSpace.xs
+
+    /** A screen's or a task's title to its content. */
+    val headToContent = HlSpace.l
+
+    /** A screen's title to a line that belongs to it: a wall's info line, the film under « Affiche ». */
+    val headToOwnLine = HlSpace.xs
+
+    /** Between the lines of one block: facts under a title, a progress under facts. */
+    val inBlock = HlSpace.s
+
+    /** Between bands under a fixed hero (« À regarder »'s rows); a titled group from what precedes it. */
+    val band = HlSpace.l
+
+    /** Between the blocks of a page that scrolls by blocks (a detail page, search). */
+    val block = HlSpace.xl
+
+    /** Between plates without a title that follow one another. */
+    val plates = HlSpace.m
+
+    /** Between facts or formats on one line. */
+    val fact = HlSpace.fact
+
+    /** A 20 icon to its word in a row, a list, a menu or a field. */
+    val iconToWord = HlSpace.s
+
+    /** An icon to its word inside a control: a button, a key, the case's action. */
+    val iconInControl = HlSpace.xs
+
+    /** A dot, a light or a mark to its word. */
+    val markToWord = HlSpace.xs
+
+    /** A glyph in a line of facts (a star, a check) to its word. */
+    val glyphToWord = HlSpace.xxs
+
+    /** A picture to its caption. */
+    val imageToCaption = HlSpace.s
+
+    /** One paragraph to the next: more than a line's room. */
+    val paragraph = HlSpace.m
+
+    /** A sentence's first baseline under its title's: the title's line height (`subject` 32, `headline` 40). */
+    @Composable
+    @ReadOnlyComposable
+    fun titleToBody(title: TextStyle): Dp = textRoom(title)
 }
 
 object HlSize {
@@ -189,11 +253,6 @@ object HlLayout {
     /** Clear logo or title of a detail page. */
     val titleArtWidth = 440.dp
     val titleArtHeight = 104.dp
-    /**
-     * The hero band of « À regarder » (and of a person's page), [HlSpace.l] from its title and its rows: logo, facts, two
-     * overview lines, [HlSpace.s] apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
-     */
-    val hero = 148.dp
     /** Title line above a poster wall, in `rowTitle`: 28 at the default text size, growing with it. */
     val infoLine: Dp
         @Composable @ReadOnlyComposable
@@ -203,8 +262,11 @@ object HlLayout {
     val episodeOverview = 72.dp
     /** Between detail page blocks: wider than [HlFocus.edge], so the block above leaves as the next arrives. */
     val detailGap = HlSpace.xl
-    /** The first row's visible part under a detail hero: gap, header, its gap and focus room, a strip of images. */
-    private fun detailPeek(header: Dp) = detailGap + header + HlSpace.xxs + HlFocus.room + HlSpace.s
+    /**
+     * The first row's visible part under a detail hero: gap, header, its gap and focus room, a strip of images; and the
+     * block gap again, which the actions' label room takes as its own ([HlActionRow]'s gap), so the row rises by it.
+     */
+    private fun detailPeek(header: Dp) = detailGap * 2 + header + HlSpace.xxs + HlFocus.room + HlSpace.s
     /** Least height of a detail hero on a [screen]: all but [detailPeek], keeping a [header] in the safe area. */
     internal fun detailHeroMin(screen: Dp, header: Dp): Dp = screen - detailPeek(header)
 
@@ -270,13 +332,13 @@ object HlLayout {
      * The band a backdrop's or a logo's sheet takes at the screen's foot, under the title previewed in the light of the
      * choice with focus, at the viewer's text size: the held name of the section of the line with focus, the wall's room,
      * that line, a [cell] tall, its words (« Automatique », and a saga's film's year with [film]) inside the safe area,
-     * then the gap to the next line and its top ([HlSpace.m]), cut by the screen's edge: 210 for a film's backdrops at
+     * then the gap to the next line and its top ([HlSpace.m]), cut by the screen's edge: 214 for a film's backdrops at
      * the default text size.
      */
     @Composable
     @ReadOnlyComposable
     fun choiceBand(cell: Dp, film: Boolean): Dp {
-        val words = HlSpace.xs + textRoom(Hl.type.cardName) + if (film) textRoom(Hl.type.meta) else HlSpace.none
+        val words = HlGap.imageToCaption + textRoom(Hl.type.cardName) + if (film) textRoom(Hl.type.meta) else HlSpace.none
         return textRoom(Hl.type.rowTitle) + HlFocus.wallRoom + cell + words + HlSpace.l + HlSpace.m
     }
     /** The two columns of the welcome screen: the choices' holds its title on one line in French. */
@@ -409,10 +471,20 @@ internal object FirstScanDefaults {
     const val STEP_MS = 2_000L
 }
 
-/** The logo or title of a hero: « À regarder », a person's page. */
+/** The logo or title of a hero: « À regarder », a person's page; the overview's lines it shows, and its band. */
 internal object HeroDefaults {
     val titleWidth = 380.dp
     val titleHeight = 56.dp
+    const val OVERVIEW_LINES = 2
+
+    /**
+     * The band, [HlSpace.l] from its screen's title and its rows, measured in boxes at the viewer's text size: logo, a
+     * line of facts or an episode's heading, two overview lines, [HlGap.inBlock] apart (56 + 12 + 16.3 + 12 + 40.3 =
+     * 136.6 at 1), so its words stand on its foot and a focused poster's stays in the safe area.
+     */
+    val band: Dp
+        @Composable get() = titleHeight + HlGap.inBlock * 2 +
+            maxOf(textBox(Hl.type.meta), textBox(Hl.type.entry)) + textBox(Hl.type.body, OVERVIEW_LINES)
 }
 
 /**
@@ -432,6 +504,9 @@ internal object VoletDefaults {
     /** Over [melt] above its words' top an open panel's picture melts into its dark, whole [melt] under it. */
     val melt = 64.dp
 
+    /** Least height of an open panel's words, bottom-anchored: logo, facts, two overview lines in lines (56 + 12 + 20 + 12 + 48). */
+    val words = 148.dp
+
     /** A panel's number under its top edge. */
     val numberTop = HlSpace.m
 
@@ -446,13 +521,18 @@ internal object VoletDefaults {
 internal object HlSettingRowDefaults {
     val valueWidth = 360.dp
 
-    /** A name over its description fills a [HlSize.row] with this room. */
-    val paddingV = 6.dp
+    /** Above and below a row's words; a name over its description is 34.4 tall, so [HlSize.row] holds it at the default size. */
+    val paddingV = HlSpace.xs
+}
+
+/** A group's plate around its rows: [HlShapes.panel] less [HlShapes.row], so their corners stay parallel. */
+internal object HlSettingGroupDefaults {
+    val inset = HlSpace.xxs
 }
 
 /** A [Showcase]'s words: from its sides and its foot, and where its name sets, over its posters' melted foot. */
 internal object ShowcaseDefaults {
-    val inset = 20.dp
+    val inset = HlInset.plate
     val nameTop = 126.dp
 }
 
@@ -462,12 +542,12 @@ internal object HlIconButtonDefaults {
     val labelWidth = 280.dp
 
     /**
-     * Room below a row of tiles for the focused label (gap, plate, one `meta` line): 36 at the default text size.
+     * Room below a row of tiles for the focused label (gap, plate, one `entry` line): 36 at the default text size.
      * The label takes none of its own; [HlActionRow] keeps it.
      */
     val labelRoom: Dp
         @Composable @ReadOnlyComposable
-        get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.meta)
+        get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.entry)
 
     /** What [labelRoom] adds for a label's second line, a tile's hint: 20 at the default text size. */
     val hintRoom: Dp
@@ -499,11 +579,6 @@ internal object TechSpecsDefaults {
  * Module 6.5 wide: whole pixels at 1080p (13) and 4K (26), so no module edge blurs. 29 modules plus the
  * 4-module quiet zone readers need make 240.5, which a phone reads from the sofa.
  */
-/** A code to type elsewhere ([app.houselights.ui.design.components.DeviceCodePlate]): its words from the plate's edge. */
-internal object DeviceCodeDefaults {
-    val inset = 28.dp
-}
-
 internal object QrCodeDefaults {
     val module = 6.5.dp
 

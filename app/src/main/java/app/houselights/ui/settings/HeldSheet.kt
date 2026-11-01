@@ -23,6 +23,7 @@ import app.houselights.providers.local.Folder
 import app.houselights.providers.local.HeldRow
 import app.houselights.providers.local.ItemKind
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
@@ -137,7 +138,7 @@ private fun HeldItem(line: HeldLine) {
         Text(pluralStringResource(R.plurals.held_more, line.more, line.more), style = Hl.type.entry, color = c.content)
         return
     }
-    val number = line.episode?.let { stringResource(R.string.home_episode, line.season ?: 0, it.toString()) }
+    val number = line.episode?.let { stringResource(R.string.episode_code, line.season ?: 0, it.toString()) }
     Column {
         Text(
             listOfNotNull(title, line.year?.toString(), number).joinToString(FACT_GAP),
@@ -147,7 +148,7 @@ private fun HeldItem(line: HeldLine) {
             overflow = TextOverflow.Ellipsis,
         )
         line.path?.let {
-            Spacer(Modifier.height(HlSpace.xxs))
+            Spacer(Modifier.height(HlGap.nameToNoteWrapped))
             Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }

@@ -33,7 +33,7 @@ import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.FocusPlaces
 import app.houselights.ui.design.FocusTakesPlace
 import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
@@ -55,7 +55,6 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.rememberRowState
-import app.houselights.ui.design.textRoom
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterActions
 import app.houselights.ui.library.PosterOptions
@@ -63,6 +62,7 @@ import app.houselights.ui.library.RefocusNotSaved
 import app.houselights.ui.library.actions
 import app.houselights.ui.library.saidFor
 import app.houselights.ui.util.ReloadOnLibraryChange
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.sectionTitle
 import app.houselights.ui.util.skeletonDelayPassed
@@ -149,10 +149,10 @@ internal fun WatchBands(
             // A fixed height fitting the text at the viewer's text size, whatever has focus.
             HeroInfo(
                 shown,
-                Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)),
+                Modifier.padding(start = HlSpace.safeH, top = HlGap.headToContent),
                 notSaved = notSaved.saidFor(shown?.id),
             )
-            Spacer(Modifier.height(HlSpace.l))
+            Spacer(Modifier.height(HlGap.band))
             if (sections.isEmpty()) {
                 SkeletonRows()
             } else {
@@ -191,7 +191,7 @@ private fun Sections(
             state = rows,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = HlFocus.edge),
-            verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
+            verticalArrangement = Arrangement.spacedBy(HlGap.band),
         ) {
             sections.forEach { section ->
                 item(key = section.key) {
@@ -216,7 +216,7 @@ private fun Sections(
                                     onClick = { onOpen(item) },
                                     modifier = mod,
                                     title = item.headTitle,
-                                    facts = listOf(item.episodeLabel, timeLeft(item)),
+                                    facts = listOf(item.episodeCode(), timeLeft(item)),
                                     onFocus = focus,
                                     onLongClick = open,
                                     onLongClickLabel = moreOptions,

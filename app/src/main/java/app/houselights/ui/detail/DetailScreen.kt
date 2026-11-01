@@ -65,6 +65,7 @@ import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
@@ -130,6 +131,7 @@ import app.houselights.ui.util.PlaybackProblem
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.jobName
@@ -761,7 +763,7 @@ private fun Hero(
             )
             Spacer(Modifier.height(HlSpace.l))
             if (isEpisode) {
-                EpisodeHeading(item.episodeLabel, item.title)
+                EpisodeHeading(item.episodeCode(), item.title)
                 Spacer(Modifier.height(HlSpace.xs))
             }
             MetaLine(item)
@@ -807,7 +809,7 @@ private fun Actions(
     // A tile may say a second line under its label: room for it from the start, so nothing moves.
     val hinted = hintsUnderTiles(item, capabilities, actions.tracks)
     OnArtwork {
-        HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
+        HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted, gap = HlLayout.detailGap) {
             PlayButtons(item, nextUp, memory, actions)
             Parts(item, memory, actions.onPlay)
             // A title to identify: Right then OK from Lire reaches it.
@@ -1043,7 +1045,7 @@ private fun RowScope.PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: Fo
 /** What Lire names: the episode, the saga's film, or the edition of a film in copies. */
 @Composable
 private fun whatLirePlays(item: MediaItem, target: MediaItem, copy: Version?, copyIndex: Int): String? = when {
-    item.kind == MediaKind.SERIES -> target.episodeLabel
+    item.kind == MediaKind.SERIES -> target.episodeCode()
     item.kind == MediaKind.COLLECTION -> target.title
     copy != null -> versionName(copy.edition, copy.label, copyIndex)
     else -> null
@@ -1160,11 +1162,21 @@ private fun Episodes(
                 .fadeOutsideSafeArea(),
         ) {
             if (playError == UiError.HELD) {
-                HlStatus(StatusState.Off, stringResource(playError.title), detail = stringResource(playError.message))
+                HlStatus(StatusState.Off, stringResource(playError.title), detail = stringResource(playError.message), reads = true)
             } else if (playError != null) {
-                HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(playError.message))
+                HlStatus(
+                    StatusState.Attention,
+                    stringResource(R.string.play_failed),
+                    detail = stringResource(playError.message),
+                    reads = true,
+                )
             } else if (markError != null) {
-                HlStatus(StatusState.Attention, stringResource(R.string.action_not_saved), detail = stringResource(markError.message))
+                HlStatus(
+                    StatusState.Attention,
+                    stringResource(R.string.action_not_saved),
+                    detail = stringResource(markError.message),
+                    reads = true,
+                )
             } else {
                 Text(
                     shown?.overview.orEmpty(),
@@ -1207,7 +1219,8 @@ private fun EpisodesFailed(
     actionModifier: Modifier = Modifier,
 ) {
     Column(modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
-        header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
+        // Its failure a block's line under it, as panels stand under a header.
+        header?.let { SectionHeader(it, Modifier.padding(bottom = HlGap.inBlock)) }
         error?.let { PartFailed(it, retrying, onRetry, actionModifier = actionModifier) }
     }
 }

@@ -32,6 +32,7 @@ import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
@@ -149,12 +150,12 @@ private fun FormPanes(
 ) {
     val side: @Composable ColumnScope.() -> Unit = {
         TaskTitle(title)
-        // From its baselines: its first under the title, its last over what stands beside the form.
+        // From its baselines: its first a title's line under the title's, its last over what stands beside the form.
         Text(
             description,
             style = Hl.type.body,
             color = Hl.colors.contentSecondary,
-            modifier = Modifier.paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xl),
+            modifier = Modifier.paddingFromBaseline(top = sentenceUnder(Hl.type.headline), bottom = HlSpace.xl),
         )
         aside()
     }
@@ -194,20 +195,20 @@ fun StatusPanel(
     // Its state as near its top as a reading plate's name; what it is about where the board sets it.
     HlPlate(
         modifier.fillMaxWidth(),
-        padding = PaddingValues(start = HlInset.card, end = HlInset.card, top = HlInset.reading, bottom = HlInset.plate),
+        padding = PaddingValues(start = HlInset.plate, end = HlInset.plate, top = HlInset.plate, bottom = HlInset.card),
     ) {
         HlStatus(state, stateText)
         Spacer(Modifier.height(HlSpace.fact))
         if (name != null) {
             Text(name, style = Hl.type.entry, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(HlSpace.xxs))
+            Spacer(Modifier.height(HlGap.nameToNoteWrapped))
         } else {
             Text(label, style = Hl.type.meta, color = c.contentSecondary)
-            Spacer(Modifier.height(HlSpace.xs))
+            Spacer(Modifier.height(HlGap.labelToValue))
         }
         Text(value, style = valueStyle, color = c.content, maxLines = 3, overflow = TextOverflow.Ellipsis)
         if (detail != null) {
-            Spacer(Modifier.height(HlSpace.xxs))
+            Spacer(Modifier.height(HlGap.nameToNoteWrapped))
             Text(detail, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (badges.isNotEmpty() || facts.any { !it.isNullOrBlank() }) {
@@ -229,8 +230,8 @@ fun StatusPanel(
     }
 }
 
-/** The name of a group of choices above them (a form's track), in `group`. */
+/** The name of a group of choices above them (a form's track), in white `group`, its choices [HlSpace.s] under its baseline. */
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.group, color = Hl.colors.contentSecondary, modifier = modifier.padding(bottom = HlSpace.xxs))
+    Text(text, style = Hl.type.group, color = Hl.colors.content, modifier = modifier.paddingFromBaseline(bottom = HlSpace.s))
 }

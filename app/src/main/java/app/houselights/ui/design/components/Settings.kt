@@ -26,6 +26,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.HorizontalAlignmentLine
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
@@ -34,6 +37,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
@@ -41,8 +46,9 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlSettingGroupDefaults
 import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -94,20 +100,48 @@ fun HlNavItem(
 }
 
 /**
- * Setting rows on one plate ([HlPlate]), [title] in `group` over it: glass on the room, the film's glass in a sheet.
- * Rows lie in it [HlInset.group] from its edge, one after the other, no rule between them.
+ * Setting rows on one plate ([HlPlate]), [title] over it ([GroupTitle]): glass on the room, the film's glass in a sheet.
+ * Rows lie in it [HlSettingGroupDefaults.inset] from its edge, one after the other, no rule between them.
  */
 @Composable
 fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier.fillMaxWidth()) {
         if (title != null) GroupTitle(title)
-        HlPlate(Modifier.fillMaxWidth(), padding = PaddingValues(HlInset.group), content = content)
+        HlPlate(Modifier.fillMaxWidth(), padding = PaddingValues(HlSettingGroupDefaults.inset), content = content)
+    }
+}
+
+/**
+ * Plates down a pane, each as wide as the column: [HlGap.plates] apart, a titled group ([GroupTitle]) [HlGap.band] from
+ * what precedes it, as a sheet sets its own.
+ */
+@Composable
+fun HlPlates(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minHeight = 0)) }
+        val gaps = placeables.mapIndexed { i, placeable ->
+            when {
+                i == 0 -> 0
+                placeable[GroupTitleTop] == 0 -> HlGap.band.roundToPx()
+                else -> HlGap.plates.roundToPx()
+            }
+        }
+        val height = placeables.sumOf { it.height } + gaps.sum()
+        val width = placeables.maxOfOrNull { it.width } ?: 0
+        layout(constraints.constrainWidth(width), constraints.constrainHeight(height)) {
+            var y = 0
+            placeables.forEachIndexed { i, placeable ->
+                y += gaps[i]
+                placeable.placeRelative(0, y)
+                y += placeable.height
+            }
+        }
     }
 }
 
 /**
  * One setting, at least [HlSize.row] tall: its name in `entry` and its [description] in secondary `meta` on one line, its
- * value on the right, in `meta` or, for a format or a figure, `jaquette` ([valueStyle]); with [onClick] a control,
+ * value on the right, in secondary `body` at its name's size or, for a format or a figure, `spec` ([valueStyle]); with [onClick] a control,
  * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
  * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
  * unavailable actions. With [valueBreaks], a value of parts (" · ") takes a line each where on one line it would cut
@@ -125,7 +159,7 @@ fun HlSettingRow(
     icon: ImageVector? = null,
     valueLit: Boolean = false,
     valueAttention: Boolean = false,
-    valueStyle: TextStyle = Hl.type.meta,
+    valueStyle: TextStyle = Hl.type.body,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
@@ -146,7 +180,7 @@ fun HlSettingRow(
                 // Quiet at rest.
                 val tint = if (focused || !enabled) LocalContentColor.current else c.contentSecondary
                 Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
-                Spacer(Modifier.width(HlSpace.m))
+                Spacer(Modifier.width(HlGap.iconToWord))
             }
             Column(Modifier.weight(1f)) {
                 Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -188,7 +222,7 @@ fun HlSettingRow(
  */
 @Composable
 private fun ColumnScope.RowDescription(description: String, progress: Float?, focused: Boolean, enabled: Boolean) {
-    Spacer(Modifier.height(HlSpace.xxs))
+    Spacer(Modifier.height(HlGap.nameToNote))
     if (progress == null) {
         Text(
             description,
@@ -226,7 +260,7 @@ private fun ValueLines(
     fun wide(text: String, style: TextStyle) = measurer.measure(text, style, softWrap = false, maxLines = 1).size.width
     val words = maxOf(wide(title, Hl.type.entry), description?.let { wide(it, Hl.type.meta) } ?: 0)
     // The row's sides, the room before its value, and its icon.
-    val beside = HlSpace.m * 2 + HlSpace.l + if (icon) HlSize.icon + HlSpace.m else 0.dp
+    val beside = HlSpace.m * 2 + HlSpace.l + if (icon) HlSize.icon + HlGap.iconToWord else 0.dp
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val room = with(LocalDensity.current) { (maxWidth - beside).roundToPx() }
         line(if (words + wide(value, style) <= room) value else value.replace(VALUE_PARTS, "\n"))
@@ -391,17 +425,41 @@ private val ConnectionSecurity.words: Int
     }
 
 /**
- * A group's [title] in `group`, set from its baseline: [HlSpace.m] under what is above it (a block [HlSpace.l] away),
- * its plate [HlSpace.s] under it.
+ * A group's [title] in white `group` ([HlSettingGroup], [HlGroup]), set from its baseline: [HlSpace.s] under its box's
+ * top and over what it heads. A titled group stands [HlGap.band] from what precedes it, plates without a title
+ * [HlGap.plates] apart: [HlPlates] sets it down a pane; in a sheet, whose plates are [HlGap.plates] apart, the title
+ * takes the rest of the band above itself, which the sheet drops at its top ([dropGroupLead]).
  */
 @Composable
 internal fun GroupTitle(title: String) {
     Text(
         title,
         style = Hl.type.group,
-        color = Hl.colors.contentSecondary,
+        color = Hl.colors.content,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.paddingFromBaseline(top = HlSpace.s, bottom = HlSpace.s),
+        modifier = Modifier
+            .padding(top = if (LocalInSheet.current) GROUP_LEAD else HlSpace.none)
+            .groupTitleTop()
+            .paddingFromBaseline(top = HlSpace.s, bottom = HlSpace.s),
     )
+}
+
+/** Where a [GroupTitle]'s box starts in what holds it, the topmost one's. */
+internal val GroupTitleTop = HorizontalAlignmentLine { a, b -> minOf(a, b) }
+
+/** What a [GroupTitle] takes above itself in a sheet, so it stands [HlGap.band] from the plate before it. */
+private val GROUP_LEAD = HlGap.band - HlGap.plates
+
+private fun Modifier.groupTitleTop(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height, mapOf(GroupTitleTop to 0)) { placeable.placeRelative(0, 0) }
+}
+
+/** Drops what a [GroupTitle] takes above itself in a sheet when it comes first in what this lays out. */
+internal fun Modifier.dropGroupLead(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val lead = GROUP_LEAD.roundToPx()
+    val drop = if (placeable[GroupTitleTop] == lead) lead else 0
+    layout(placeable.width, (placeable.height - drop).coerceAtLeast(constraints.minHeight)) { placeable.placeRelative(0, -drop) }
 }

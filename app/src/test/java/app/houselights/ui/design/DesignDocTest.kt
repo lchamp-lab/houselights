@@ -18,7 +18,7 @@ class DesignDocTest {
     private val tests = File("src/test/java")
 
     /**
-     * What the doc names in code: types and components (`PosterCard`, `HlLayout.hero`, `CatalogStress`), functions
+     * What the doc names in code: types and components (`PosterCard`, `HlLayout.detailGap`, `CatalogStress`), functions
      * (`emberLit`, `Modifier.houseLit`), constants (`PLATE_MAX`, `N0`) and files (`Type.kt`).
      */
     private val named = Regex("""^([A-Z][a-z]\w*|[a-z]+[A-Z]\w*|[A-Z][A-Z0-9_]+)(\.\w+)*$""")

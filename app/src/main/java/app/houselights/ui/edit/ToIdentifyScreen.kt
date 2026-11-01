@@ -57,6 +57,7 @@ import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.TaskTitle
+import app.houselights.ui.design.components.sentenceUnder
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
@@ -132,7 +133,7 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, q
                 stringResource(R.string.to_identify_desc),
                 style = Hl.type.body,
                 color = Hl.colors.contentSecondary,
-                modifier = Modifier.paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xl),
+                modifier = Modifier.paddingFromBaseline(top = sentenceUnder(Hl.type.headline), bottom = HlSpace.xl),
             )
         },
         sideWidth = TwoPaneDefaults.sideWide,

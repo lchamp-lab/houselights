@@ -49,6 +49,7 @@ import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
+import app.houselights.ui.design.components.HlPlates
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
@@ -100,38 +101,42 @@ internal fun LazyListScope.libraryPane(
                 }
             }
             item(key = "library-actions") { LibraryActions({ onFolderForm(null, FolderField.FIRST, false) }, rows, sources.toIdentify) }
-            item(key = "library-film-data") { FilmData() }
-            item(key = "library-source") { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) } }
+            item(key = "library-film-data") {
+                HlPlates {
+                    FilmData()
+                    HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) }
+                }
+            }
         }
         is SourceConfig.Jellyfin -> {
             item(key = "library-server") {
                 Section(stringResource(R.string.section_source)) {
-                    // States, not settings: a case's back, the address under its facts.
-                    val encrypted = JellyfinClient.isEncrypted(source.serverUrl)
-                    FactPlate(note = source.serverUrl) {
-                        PlateFact(
-                            stringResource(R.string.label_server),
-                            source.serverName ?: stringResource(R.string.source_jellyfin),
-                            Modifier.weight(1f, fill = false),
-                        )
-                        source.userName?.let { PlateFact(stringResource(R.string.label_user), it, Modifier.weight(1f, fill = false)) }
-                        PlateFact(
-                            stringResource(R.string.label_connection),
-                            stringResource(if (encrypted) R.string.connection_encrypted else R.string.connection_plain),
-                        )
+                    HlPlates {
+                        // States, not settings: a case's back, the address under its facts.
+                        val encrypted = JellyfinClient.isEncrypted(source.serverUrl)
+                        FactPlate(note = source.serverUrl) {
+                            PlateFact(
+                                stringResource(R.string.label_server),
+                                source.serverName ?: stringResource(R.string.source_jellyfin),
+                                Modifier.weight(1f, fill = false),
+                            )
+                            source.userName?.let { PlateFact(stringResource(R.string.label_user), it, Modifier.weight(1f, fill = false)) }
+                            PlateFact(
+                                stringResource(R.string.label_connection),
+                                stringResource(if (encrypted) R.string.connection_encrypted else R.string.connection_plain),
+                            )
+                        }
+                        HlSettingGroup(null, Modifier.revealOnFocus()) {
+                            // A password changed or a device revoked: the sign-in opens filled in, on the password.
+                            HlSettingRow(
+                                stringResource(R.string.reconnect),
+                                rows.focus("reconnect"),
+                                description = source.userName,
+                                onClick = { sources.signIn(LoginFill.Current) },
+                            )
+                            SourceRow(sources, rows.focus(SOURCE))
+                        }
                     }
-                }
-            }
-            item(key = "library-source") {
-                HlSettingGroup(null, Modifier.revealOnFocus()) {
-                    // A password changed or a device revoked: the sign-in opens filled in, on the password.
-                    HlSettingRow(
-                        stringResource(R.string.reconnect),
-                        rows.focus("reconnect"),
-                        description = source.userName,
-                        onClick = { sources.signIn(LoginFill.Current) },
-                    )
-                    SourceRow(sources, rows.focus(SOURCE))
                 }
             }
         }
@@ -532,7 +537,7 @@ private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows, onOpenToIden
             description = stringResource(R.string.scan_now_desc),
             // The counter's notation, as on the scanning folder's showcase.
             value = if (scan.running) scanCount(scan.processed, scan.total) else null,
-            valueStyle = Hl.type.jaquette,
+            valueStyle = Hl.type.spec,
             onClick = { vm.library.scan() },
         )
         HlSettingRow(
@@ -552,7 +557,7 @@ private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows, onOpenToIden
                 rows.focus(TO_IDENTIFY, ACTIONS),
                 value = formatCount(toIdentify?.toLong() ?: 0),
                 description = stringResource(R.string.to_identify_row_desc),
-                valueStyle = Hl.type.jaquette,
+                valueStyle = Hl.type.spec,
                 onClick = onOpenToIdentify,
             )
         }

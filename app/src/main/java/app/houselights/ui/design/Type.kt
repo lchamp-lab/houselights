@@ -3,6 +3,7 @@ package app.houselights.ui.design
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.AlignmentLine
@@ -15,6 +16,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Dp
@@ -145,26 +147,25 @@ data class HlType(
     val headline: TextStyle,
     /** What a pane or sheet is about, an intertitle's line, a folder's name, a figure or a name stated. */
     val subject: TextStyle,
-    /** The words of a track (a season, an NFO's view); [placeCurrent] for the one you are in. */
-    val place: TextStyle,
+    /** The track's word you are in (a season, an NFO's view), heavier than the others, which are [rowTitle]. */
     val placeCurrent: TextStyle,
-    /** A row's title over its cards; the selected title over a wall; a door's title without its logo. */
+    /** A row's title over its cards; the selected title over a wall; a door's title without its logo; a track's word. */
     val rowTitle: TextStyle,
-    /** A name under a card or on a door, home's case's action, a result's name. */
+    /** A name under a card or on a door, a result's name. */
     val cardName: TextStyle,
     /** A title set on a card without artwork, like a plain one-sheet. */
     val cardTitle: TextStyle,
 
     // The voice of reading (normal width).
-    /** A tagline, an episode's name in its heading, a typed query and the keyboard's letters. */
+    /** A tagline, an episode's name in its heading, a typed query, the keyboard's letters, a word over a title. */
     val lead: TextStyle,
-    /** Overviews, paragraphs, a synopsis, an NFO's values, what is typed in a field. */
+    /** Overviews, paragraphs, a synopsis, an NFO's values, what is typed in a field, a sentence read to act, a row's value. */
     val body: TextStyle,
     /** A name to choose: a button's or a menu's words, a setting, a place, a version, a value in words. */
     val entry: TextStyle,
-    /** Facts, descriptions, values, notes, counts, time left; tabular figures. */
+    /** Facts, counts, labels, a row's description, notes on one line, hints, time left; tabular figures. */
     val meta: TextStyle,
-    /** Title over a group of facts or settings ("Image", "État"), a field's name: a step under the names it heads. */
+    /** Title over a group of facts or settings ("Image", "État"), a field's name, in white: a step under the names it heads. */
     val group: TextStyle,
     /** Raw text to read as written (NFO XML). */
     val code: TextStyle,
@@ -172,9 +173,9 @@ data class HlType(
     // The technical voice (expanded, tabular figures).
     /** A technical value a pane or a plate states: definition, ratio, codec, an address. */
     val spec: TextStyle,
-    /** Formats set as on a case's back, a duration inside a button, a door's labels, an address under a QR code. */
+    /** Formats set as on a case's back, a duration inside a button, an address under a QR code, a version. */
     val jaquette: TextStyle,
-    /** Printed marks in their box: an age rating, a protocol, a card's year. */
+    /** Printed marks in their box: an age rating, a protocol. */
     val badge: TextStyle,
 
     // Signatures, each set to its own measure.
@@ -194,13 +195,12 @@ val HouselightsType = HlType(
     display = scale(HlFonts.condensed, FontWeight.SemiBold, 44, 52, lineBreak = TITLE),
     headline = scale(HlFonts.condensed, FontWeight.SemiBold, 32, 40, lineBreak = TITLE),
     subject = scale(HlFonts.condensed, FontWeight.Medium, 26, 32, FIGURES, TITLE),
-    place = scale(HlFonts.condensed, FontWeight.Medium, 20, 28),
     placeCurrent = scale(HlFonts.condensed, FontWeight.SemiBold, 20, 28),
     rowTitle = scale(HlFonts.condensed, FontWeight.Medium, 20, 28, lineBreak = TITLE),
     cardName = scale(HlFonts.condensed, FontWeight.Medium, 16, 20, lineBreak = TITLE),
     cardTitle = scale(HlFonts.condensed, FontWeight.SemiBold, 16, 20, lineBreak = TITLE),
 
-    lead = scale(HlFonts.text, FontWeight.Medium, 16, 24, lineBreak = TITLE),
+    lead = scale(HlFonts.text, FontWeight.Medium, 15, 24, lineBreak = TITLE),
     body = scale(HlFonts.text, FontWeight.Normal, 15, 24, lineBreak = PROSE),
     entry = scale(HlFonts.text, FontWeight.Medium, 15, 20),
     meta = scale(HlFonts.text, FontWeight.Normal, 13, 20, FIGURES, PROSE),
@@ -255,3 +255,16 @@ fun textRoom(height: Dp): Dp = with(LocalDensity.current) { height.value.sp.toDp
 @Composable
 @ReadOnlyComposable
 fun textRoom(style: TextStyle): Dp = with(LocalDensity.current) { style.lineHeight.toDp() }
+
+/**
+ * The box [lines] lines of [style] take, at the viewer's text size, as `Trim.Both` sets them: letters top to bottom,
+ * line heights between them only (`body`, two lines: 40.3 at 1). A frame measured in boxes holds its text exactly.
+ */
+@Composable
+fun textBox(style: TextStyle, lines: Int = 1): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    return remember(style, lines, density) {
+        with(density) { measurer.measure(List(lines) { "H" }.joinToString("\n"), style).size.height.toDp() }
+    }
+}

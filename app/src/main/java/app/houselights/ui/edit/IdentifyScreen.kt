@@ -316,7 +316,7 @@ private fun CurrentMatch(current: MatchCandidate, manual: Boolean) {
         PosterThumb(current.poster, width = HlSize.posterThumbLarge)
         Spacer(Modifier.width(HlSpace.m))
         Column {
-            Text(current.title, style = Hl.type.cardTitle, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(current.title, style = Hl.type.cardName, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(HlSpace.xxs))
             FactRow(listOf(current.year?.toString(), current.originalTitle))
             Spacer(Modifier.height(HlSpace.s))

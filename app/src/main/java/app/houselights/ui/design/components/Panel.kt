@@ -55,8 +55,10 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlSettingGroupDefaults
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -174,12 +176,13 @@ internal fun HlRowSurface(
 /**
  * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `plateEdge`, read while drawing:
  * on a field of posters ([PosterField]) its dark, as a plate over a picture; in a sheet the film's [glassPlate]; glass
- * on the bare room. What it holds lies on glass.
+ * on the bare room. What it holds lies on glass, its words [HlInset.plate] from its sides and [HlInset.card] from its
+ * top and foot.
  */
 @Composable
 fun HlPlate(
     modifier: Modifier = Modifier,
-    padding: PaddingValues = PaddingValues(HlInset.card),
+    padding: PaddingValues = PaddingValues(horizontal = HlInset.plate, vertical = HlInset.card),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.plate(BorderStroke(HlSize.hairline, Hl.colors.plateEdge)).padding(padding)) {
@@ -240,11 +243,12 @@ internal fun PlateSlice(first: Boolean, last: Boolean, content: @Composable Colu
             }
         }
     }
+    val group = HlSettingGroupDefaults.inset
     val inset = PaddingValues(
-        start = HlInset.group,
-        end = HlInset.group,
-        top = if (first) HlInset.group else HlSpace.none,
-        bottom = if (last) HlInset.group else HlSpace.none,
+        start = group,
+        end = group,
+        top = if (first) group else HlSpace.none,
+        bottom = if (last) group else HlSpace.none,
     )
     Column(slice.padding(inset)) {
         CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
@@ -277,7 +281,7 @@ fun ReadingPlate(
             .then(reading)
             .focusable()
             .plate(edge)
-            .padding(start = HlInset.reading, end = HlInset.reading, top = HlSpace.m, bottom = HlInset.plate),
+            .padding(start = HlInset.plate, end = HlInset.plate, top = HlSpace.m, bottom = HlInset.card),
     ) {
         CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
     }
@@ -385,34 +389,42 @@ fun HlEmptyState(
 enum class StatusState { On, Done, Off, Pending, Attention }
 
 /**
- * A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words. Each
- * holds on [maxLines] at most, ending in an ellipsis.
+ * A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words, closer on
+ * one line than on several. Each holds on [maxLines] at most, ending in an ellipsis. Said in the place of text to read
+ * ([reads]: an episode's overview), its state is an `entry` and its reason `body`, as the text it replaces; else `meta`.
  */
 @Composable
-fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null, maxLines: Int = Int.MAX_VALUE) {
+fun HlStatus(
+    state: StatusState,
+    text: String,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    reads: Boolean = false,
+) {
     val c = Hl.colors
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             StatusLight(state)
-            Spacer(Modifier.width(HlSpace.xs))
+            Spacer(Modifier.width(HlGap.markToWord))
             val strong = state != StatusState.Off && state != StatusState.Pending
             Text(
                 text,
-                style = Hl.type.meta,
+                style = if (reads) Hl.type.entry else Hl.type.meta,
                 color = if (strong) c.content else c.contentSecondary,
                 maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         if (detail != null) {
-            Spacer(Modifier.height(HlSpace.xxs))
+            Spacer(Modifier.height(if (maxLines == 1) HlGap.nameToNote else HlGap.nameToNoteWrapped))
             Text(
                 detail,
-                style = Hl.type.meta,
+                style = if (reads) Hl.type.body else Hl.type.meta,
                 color = c.contentSecondary,
                 maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = HlSize.statusLight + HlSpace.xs),
+                modifier = Modifier.padding(start = HlSize.statusLight + HlGap.markToWord),
             )
         }
     }

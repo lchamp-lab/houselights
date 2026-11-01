@@ -33,6 +33,7 @@ import app.houselights.core.hasPage
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.OnArtwork
@@ -102,7 +103,7 @@ fun SearchScreen(
     AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse, modifier) {
         Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV)) {
             ScreenTitle(stringResource(R.string.search), Modifier.padding(start = HlSpace.safeH))
-            Spacer(Modifier.height(HlSpace.m))
+            Spacer(Modifier.height(HlGap.headToContent))
             Row(Modifier.fillMaxSize()) {
                 // The query is as wide as the keyboard below it; both lie on plates in the picture's dark.
                 OnArtwork {

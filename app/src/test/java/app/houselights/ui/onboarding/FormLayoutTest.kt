@@ -420,7 +420,7 @@ class FormLayoutTest {
         until { flow.message != null }
         val said = compose.activity.getString(R.string.error_nfs_refused, FakeFlowNetwork.PLAYER, wholePath("/volume1/photo"))
         val box = compose.onNodeWithText(said, useUnmergedTree = true).getUnclippedBoundsInRoot()
-        assertTrue("the panel ends inside the safe area: $box", box.bottom + HlInset.plate <= SCREEN_H - HlSpace.safeV)
+        assertTrue("the panel ends inside the safe area: $box", box.bottom + HlInset.card <= SCREEN_H - HlSpace.safeV)
         listOf(said, compose.activity.getString(R.string.flow_share_desc)).forEach { assertFalse("$it cut", cut(it)) }
     }
 

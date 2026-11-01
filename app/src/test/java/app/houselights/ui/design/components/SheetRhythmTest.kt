@@ -1,5 +1,8 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -117,32 +120,63 @@ class SheetRhythmTest {
         assertAt("its text", TextBoard.SYNOPSIS, at("Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine."))
     }
 
+    @Test
+    fun aTitledGroupStandsABandFromThePlateBeforeItAndNoneAtTheTop() {
+        var titled by mutableStateOf(false)
+        var first by mutableStateOf(false)
+        compose.setTvContent {
+            HlSideSheet("Feuille", onDismiss = {}) { _ ->
+                if (!first) HlSettingGroup(null) { HlSettingRow("Une") }
+                HlSettingGroup(if (titled) "Groupe" else null) { HlSettingRow("Deux") }
+            }
+        }
+        val plain = at("Deux")
+        titled = true
+        compose.waitForIdle()
+        assertEquals("a band, not a plate's gap, then the title's box", BAND - PLATES + TITLE_BOX, at("Deux") - plain, HALF)
+        first = true
+        compose.waitForIdle()
+        val alone = at("Deux")
+        titled = false
+        compose.waitForIdle()
+        assertEquals("first, only the title's box", TITLE_BOX, alone - at("Deux"), HALF)
+    }
+
     /** The block read first as [name]. */
     private fun block(name: String) = SemanticsMatcher("the $name block") {
         it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()?.startsWith("$name, ") == true
     }
 
-    /** `board2/second.html`, in dp from the sheet's top: its head, a technical sheet's plates. */
+    /** `board2/second.html`, in dp from the sheet's top, its title on the screen title's baseline: its head, a technical sheet's plates. */
     private object SecondBoard {
-        const val TITLE = 60f
-        const val FACTS = 84f
-        const val FIRST_PLATE = 107f
+        const val TITLE = 56f
+        const val FACTS = 80f
+        const val FIRST_PLATE = 103f
         const val PLATE_GAP = 16f
     }
 
-    /** « Échelle de texte », in dp from the sheet's top: what an NFO is and its definitions, a synopsis. */
+    /**
+     * « Échelle de texte », in dp from the sheet's top, its sentence `m` under its head and a synopsis's text `s`
+     * under its tagline: what an NFO is and its definitions, a synopsis.
+     */
     private object TextBoard {
-        const val NFO_ABOUT = 124f
-        const val FIRST_DEFINITION = 176f
+        const val NFO_ABOUT = 114f
+        const val FIRST_DEFINITION = 170f
 
         /** From one definition's baseline to the next's. */
         const val DEFINITION_PITCH = 37f
-        const val TAGLINE = 135f
-        const val SYNOPSIS = 176f
+        const val TAGLINE = 131f
+        const val SYNOPSIS = 159f
     }
 
     private companion object {
         /** Within 3 dp of the board. */
         const val CLOSE = 3f
+        const val HALF = 0.5f
+
+        /** A band, a plate's gap, a group title's box (its baseline `s` under its top and over its plate). */
+        const val BAND = 24f
+        const val PLATES = 16f
+        const val TITLE_BOX = 24f
     }
 }

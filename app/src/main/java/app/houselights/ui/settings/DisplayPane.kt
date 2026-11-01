@@ -1,8 +1,6 @@
 package app.houselights.ui.settings
 
 import android.view.Display
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
@@ -26,13 +24,13 @@ import app.houselights.settings.OutputControl
 import app.houselights.settings.TextSize
 import app.houselights.settings.outputModes
 import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlGroup
 import app.houselights.ui.design.components.HlPlate
+import app.houselights.ui.design.components.HlPlates
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.PlateFact
@@ -57,7 +55,7 @@ internal fun LazyListScope.displayPane(s: AppSettings, rows: PaneRows) {
         val control = outputControl()
         val sentence = if (control == OutputControl.Player) R.string.display_desc_player else R.string.display_desc_system
         Section(stringResource(R.string.section_display), sentence = stringResource(sentence)) {
-            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            HlPlates {
                 OutputFacts(control)
                 if (control != OutputControl.Player) ModesGroup()
                 HlSettingGroup(stringResource(R.string.display_interface)) {

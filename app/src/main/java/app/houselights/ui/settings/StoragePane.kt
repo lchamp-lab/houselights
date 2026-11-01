@@ -30,6 +30,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlPlate
+import app.houselights.ui.design.components.HlPlates
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.MeterFact
@@ -41,9 +42,13 @@ import kotlinx.coroutines.launch
 
 internal fun LazyListScope.storagePane(storage: StorageStats?) {
     item(key = "storage") {
-        Section(stringResource(R.string.section_storage), sentence = stringResource(R.string.storage_desc)) { StorageSummary(storage) }
+        Section(stringResource(R.string.section_storage), sentence = stringResource(R.string.storage_desc)) {
+            HlPlates {
+                StorageSummary(storage)
+                StorageActions(storage)
+            }
+        }
     }
-    item(key = "storage-actions") { StorageActions(storage) }
 }
 
 /**
@@ -55,7 +60,7 @@ private fun StorageSummary(st: StorageStats?) {
     val c = Hl.colors
     val dash = stringResource(R.string.placeholder_none)
     // A line's room under the figures, as the total keeps its own above the meter.
-    val room = PaddingValues(start = HlInset.card, end = HlInset.card, top = HlInset.plate, bottom = HlSpace.xl)
+    val room = PaddingValues(start = HlInset.plate, end = HlInset.plate, top = HlInset.card, bottom = HlSpace.xl)
     HlPlate(Modifier.fillMaxWidth(), padding = room) {
         Row(Modifier.fillMaxWidth()) {
             val total = st?.let { formatBytes(it.total) } ?: dash
@@ -159,7 +164,7 @@ private fun StorageActions(storage: StorageStats?) {
                 ?: if (cleared) stringResource(R.string.image_cache_cleared) else storage?.let { formatBytes(it.imageCacheBytes) },
             valueAttention = cacheFailure != null,
             // What it frees is a figure; what it did, words.
-            valueStyle = if (cacheFailure == null && !cleared) Hl.type.jaquette else Hl.type.meta,
+            valueStyle = if (cacheFailure == null && !cleared) Hl.type.spec else Hl.type.body,
             onClick = {
                 scope.launch { cleared = vm.clearImageCache() }
             },

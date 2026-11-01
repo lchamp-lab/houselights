@@ -250,10 +250,13 @@ private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolea
                 Icon(it, contentDescription = null, modifier = Modifier.size(HlSize.icon))
                 Spacer(Modifier.width(HlControl.iconGap))
             }
-            ButtonLabel(words.text)
-            words.detail?.let {
-                Spacer(Modifier.width(HlControl.iconGap))
-                ButtonDetail(it, primary, lit, enabled)
+            // Words of two sizes on one baseline, centred as one; the icon centred beside them.
+            Row {
+                Box(Modifier.alignByBaseline()) { ButtonLabel(words.text) }
+                words.detail?.let {
+                    Spacer(Modifier.width(HlControl.iconGap))
+                    Box(Modifier.alignByBaseline()) { ButtonDetail(it, primary, lit, enabled) }
+                }
             }
         }
     }
@@ -448,16 +451,19 @@ private fun Tile(
 
 /**
  * A row of actions that reserves room below for a tile's focus label, and for its hint's line when [hinted] (a tile
- * may have one on this screen), so nothing moves.
+ * may have one on this screen), so nothing moves; less the block [gap] that follows it, which the label takes as its
+ * own (a detail page's: max(gap, label) under the actions, never both).
  */
 @Composable
 fun HlActionRow(
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(HlSpace.s),
     hinted: Boolean = false,
+    gap: Dp = HlSpace.none,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val room = HlIconButtonDefaults.labelRoom + if (hinted) HlIconButtonDefaults.hintRoom else HlSpace.none
+    val label = HlIconButtonDefaults.labelRoom + if (hinted) HlIconButtonDefaults.hintRoom else HlSpace.none
+    val room = (label - gap).coerceAtLeast(HlSpace.none)
     Row(
         Modifier.padding(bottom = room).then(modifier),
         horizontalArrangement = horizontalArrangement,
@@ -520,7 +526,7 @@ fun HlIconButton(
                     .labelPlate(c, light)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             ) {
-                Text(label, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(label, style = Hl.type.entry, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (onLongClick != null) {
                     // On a hint's line, as tall as it, at its end.
                     MenuKey(Modifier.align(Alignment.End).height(HlIconButtonDefaults.hintRoom).wrapContentHeight(unbounded = true))
@@ -809,7 +815,7 @@ private fun Word(text: String, current: Boolean, lit: Boolean) {
     val t = Hl.type
     val here = remember(c, t.placeCurrent) { t.placeCurrent.emberLit(c) }
     val style = when {
-        !current -> t.place
+        !current -> t.rowTitle
         lit -> t.placeCurrent
         else -> here
     }

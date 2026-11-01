@@ -48,6 +48,7 @@ import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlPlate
+import app.houselights.ui.design.components.HlPlates
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
@@ -104,31 +105,38 @@ private fun SecondaryRoom() {
             }
             Spacer(Modifier.width(HlSpace.xxl))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                FactPlate(note = "Pour la changer : Réglages du lecteur, puis Affichage.") {
-                    PlateFact(stringResource(R.string.current_output), stringResource(R.string.output_by_player), state = StatusState.Done)
-                    PlateFact("Rendu de l’interface", "Full HD", technical = true, measure = "1920 × 1080")
-                }
-                HlSettingGroup("Interface") {
-                    HlSettingRow(
-                        stringResource(R.string.interface_language),
-                        description = "Menus, réglages et messages",
-                        value = "Français",
-                        onClick = {},
-                    )
-                    HlSettingRow(
-                        stringResource(R.string.clear_image_cache),
-                        description = stringResource(R.string.clear_cache_desc),
-                        value = "151,5 Mo",
-                        valueStyle = Hl.type.jaquette,
-                        onClick = {},
-                    )
-                    // The Counter on a row: an update downloading, its count at the end of its line.
-                    HlSettingRow(
-                        stringResource(R.string.update_downloading),
-                        description = "2,1 Mo / 6,4 Mo",
-                        progress = 0.33f,
-                        onClick = {},
-                    )
+                // A plate of facts, then a titled group a band under it.
+                HlPlates {
+                    FactPlate(note = "Pour la changer : Réglages du lecteur, puis Affichage.") {
+                        PlateFact(
+                            stringResource(R.string.current_output),
+                            stringResource(R.string.output_by_player),
+                            state = StatusState.Done,
+                        )
+                        PlateFact("Rendu de l’interface", "Full HD", technical = true, measure = "1920 × 1080")
+                    }
+                    HlSettingGroup("Interface") {
+                        HlSettingRow(
+                            stringResource(R.string.interface_language),
+                            description = "Menus, réglages et messages",
+                            value = "Français",
+                            onClick = {},
+                        )
+                        HlSettingRow(
+                            stringResource(R.string.clear_image_cache),
+                            description = stringResource(R.string.clear_cache_desc),
+                            value = "151,5 Mo",
+                            valueStyle = Hl.type.spec,
+                            onClick = {},
+                        )
+                        // The Counter on a row: an update downloading, its count at the end of its line.
+                        HlSettingRow(
+                            stringResource(R.string.update_downloading),
+                            description = "2,1 Mo / 6,4 Mo",
+                            progress = 0.33f,
+                            onClick = {},
+                        )
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
                     HlStatus(StatusState.On, "Connecté")
@@ -152,7 +160,8 @@ private fun SecondaryPanes() {
             PaneLockup()
             JaquetteLine(listOf("Version" to "0.1.0", "Licence" to "GPL-3.0, logiciel libre"))
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        // A titled group, then plates without a title, a plate's gap apart.
+        HlPlates(Modifier.weight(1f)) {
             HlGroup("Générique") {
                 DefinitionPlate {
                     PlateDefinition("Données des films", note = stringResource(R.string.tmdb_attribution)) {

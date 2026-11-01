@@ -173,7 +173,7 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
                     Text(
                         it,
                         style = Hl.type.group,
-                        color = c.contentSecondary,
+                        color = c.content,
                         modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs),
                     )
                 }

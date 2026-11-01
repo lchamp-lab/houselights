@@ -82,7 +82,7 @@ class TextScaleTest {
         with(HouselightsType) {
             // Android's curve: 12 to 15 sp grow 15 to 16 %, 16 sp 13 %, 30 sp and up keep their size.
             listOf(meta, body).forEach { assertTrue("${it.fontSize}: ${growth(it)}", growth(it) >= 0.15f - EPSILON) }
-            assertTrue("${lead.fontSize}: ${growth(lead)}", growth(lead) in 0.12f..0.14f)
+            assertTrue("${cardName.fontSize}: ${growth(cardName)}", growth(cardName) in 0.12f..0.14f)
             assertTrue("${headline.fontSize}: ${growth(headline)}", growth(headline) < 0.01f)
             assertEquals("${titleSignature.fontSize}", 0f, growth(titleSignature), EPSILON)
         }

@@ -122,10 +122,10 @@ private fun Modifier.readingArea(focused: Boolean): Modifier {
     return if (onGlass) clip(HlShapes.panel).plate(edge) else panel(HlShapes.panel, groundStepFill(), edge)
 }
 
-/** Room inside a reading area: a panel's all round, or on glass a reading plate's down ([ReadingPlate]) and a card's across. */
+/** Room inside a reading area: a panel's all round, or on glass a reading plate's ([ReadingPlate]). */
 @Composable
 private fun readingPadding(): PaddingValues = if (LocalGround.current == Ground.Glass) {
-    PaddingValues(start = HlInset.card, end = HlInset.card, top = HlSpace.m, bottom = HlInset.plate)
+    PaddingValues(start = HlInset.plate, end = HlInset.plate, top = HlSpace.m, bottom = HlInset.card)
 } else {
     PaddingValues(HlInset.card)
 }

@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -45,7 +46,7 @@ import app.houselights.ui.design.EdgeScroll
 import app.houselights.ui.design.Gradation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -55,13 +56,27 @@ import app.houselights.ui.design.PaneDefaults
 import app.houselights.ui.design.plate
 import app.houselights.ui.design.plateEdge
 
-/** The screen title's baseline from its top, at the viewer's text size: where a pane's head sets its own. */
+/** The screen title's baseline from its top, at the viewer's text size: where a pane's and a sheet's head set their own. */
 @Composable
-private fun screenTitleBaseline(): Dp {
+internal fun screenTitleBaseline(): Dp {
     val measurer = rememberTextMeasurer()
     val headline = Hl.type.headline
     val density = LocalDensity.current
     return remember(headline, density) { with(density) { measurer.measure("H", headline).firstBaseline.toDp() } }
+}
+
+/**
+ * Where a sentence set right under a [title]'s box places its first baseline, from its own top: so that baseline falls
+ * a title's line under the title's ([HlGap.titleToBody]), the title's descent taken off.
+ */
+@Composable
+internal fun sentenceUnder(title: TextStyle): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val descent = remember(title, density) {
+        with(density) { measurer.measure("H", title).let { it.size.height - it.firstBaseline }.toDp() }
+    }
+    return HlGap.titleToBody(title) - descent
 }
 
 /**
@@ -97,7 +112,7 @@ fun PaneHead(
                 Row(Modifier.alignByBaseline(), verticalAlignment = Alignment.CenterVertically) {
                     if (state != null) {
                         StatusLight(state, Modifier.size(HlSize.dot))
-                        Spacer(Modifier.width(HlSpace.xs))
+                        Spacer(Modifier.width(HlGap.markToWord))
                     }
                     Text(aside, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -108,8 +123,9 @@ fun PaneHead(
                 sentence,
                 style = Hl.type.body,
                 color = c.contentSecondary,
-                // Its box ends a little under its baseline, so a block HlSpace.l away sits where the board has it.
-                modifier = Modifier.widthIn(max = HlLayout.readableNarrow).paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xxs),
+                // A title's line under the title's baseline; its box ends a little under its own.
+                modifier = Modifier.widthIn(max = HlLayout.readableNarrow)
+                    .paddingFromBaseline(top = HlGap.titleToBody(Hl.type.subject), bottom = HlSpace.xxs),
             )
         }
         if (read != null) {
@@ -145,7 +161,7 @@ fun PaneLockup(modifier: Modifier = Modifier) {
     Lockup(capitals, modifier.padding(top = screenTitleBaseline() - capitals, bottom = overhang))
 }
 
-/** A group's [title] in `group` over what it holds (a [FactPlate], a [DefinitionPlate]), as [HlSettingGroup] sets it. */
+/** A group's [title] ([GroupTitle]) over what it holds (a [FactPlate], a [DefinitionPlate]), as [HlSettingGroup] sets it. */
 @Composable
 fun HlGroup(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Column(modifier.fillMaxWidth()) {
@@ -213,7 +229,7 @@ fun JaquetteLine(facts: List<Pair<String, String>>, modifier: Modifier = Modifie
 /** Definitions on a plate (About's credits): each [PlateDefinition] a line, [HlSpace.m] apart. Nothing in it takes focus. */
 @Composable
 fun DefinitionPlate(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    HlPlate(modifier.fillMaxWidth(), padding = PaddingValues(horizontal = HlInset.card, vertical = HlInset.plate)) {
+    HlPlate(modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m), content = content)
     }
 }
@@ -242,7 +258,7 @@ fun PlateDefinition(label: String, modifier: Modifier = Modifier, note: String? 
                 note,
                 style = Hl.type.meta,
                 color = c.contentSecondary,
-                modifier = Modifier.padding(start = PaneDefaults.plateLabel, top = HlSpace.xxs),
+                modifier = Modifier.padding(start = PaneDefaults.plateLabel, top = HlGap.nameToNoteWrapped),
             )
         }
     }
@@ -278,7 +294,7 @@ fun MeterFact(
             Spacer(Modifier.width(HlSpace.xs))
             Text(label, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Spacer(Modifier.height(HlSpace.xs))
+        Spacer(Modifier.height(HlGap.labelToValue))
         Text(value, style = if (technical) Hl.type.spec else Hl.type.entry, color = c.content, maxLines = 1)
     }
 }

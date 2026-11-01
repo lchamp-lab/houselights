@@ -121,7 +121,7 @@ fun CatalogScreen(modifier: Modifier = Modifier) {
                 Group("Type: the voices of the poster, of reading, technical; then the signatures", still = true) {
                     listOf(
                         "display" to t.display, "headline" to t.headline, "subject" to t.subject,
-                        "place" to t.place, "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
+                        "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
                         "cardName" to t.cardName, "cardTitle" to t.cardTitle,
                         "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,

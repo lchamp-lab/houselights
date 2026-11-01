@@ -103,7 +103,7 @@
     <string name="home_state_tmdb_refused">Clé refusée</string>
     <string name="home_state_tmdb_offline">Injoignable</string>
     <string name="home_scan_running">En cours…</string>
-    <string name="home_episode">S%1$d · É%2$s</string>
+    <string name="episode_code">S%1$d É%2$s</string>
     <string name="home_open_title">Ouvrir la fiche</string>
     <plurals name="home_news_week">
         <item quantity="one">%d cette semaine</item>

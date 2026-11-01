@@ -3,6 +3,8 @@ package app.houselights.ui.design.components
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.rememberScrollState
@@ -31,6 +33,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import kotlinx.coroutines.launch
@@ -105,10 +108,10 @@ fun SynopsisSheet(facts: List<String?>, tagline: String?, overview: String, onDi
         scroll = scroll,
     ) { _ ->
         Column {
-            // The tagline as far under the head as over the text, from its baseline.
+            // The tagline under the head from its baseline, opening the text a block's line over it, as on the page.
             tagline?.takeIf { it.isNotBlank() }?.let {
-                val apart = HlSpace.l + HlSpace.xxs
-                Text(it, style = Hl.type.lead, color = c.content, modifier = Modifier.paddingFromBaseline(top = apart, bottom = apart))
+                Text(it, style = Hl.type.lead, color = c.content, modifier = Modifier.paddingFromBaseline(top = HlSpace.l + HlSpace.xxs))
+                Spacer(Modifier.height(HlGap.inBlock))
             }
             Text(
                 overview,

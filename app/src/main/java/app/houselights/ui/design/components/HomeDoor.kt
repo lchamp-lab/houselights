@@ -24,6 +24,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Icon
@@ -49,7 +51,7 @@ sealed interface DoorNote {
     /** New titles, after the ember dot ("4 nouveaux"). */
     data class News(val text: String) : DoorNote
 
-    /** A mark printed as on a case's back ("S1 · É4", a count). */
+    /** A mark printed as on a case's back ("S1 É4", a count). */
     data class Mark(val text: String) : DoorNote
 }
 
@@ -137,8 +139,19 @@ private fun BandLine(modifier: Modifier = Modifier, content: @Composable () -> U
         val height = maxOf(icon.height, name.height, placedNote?.height ?: 0)
         layout(loose.maxWidth, height) {
             if (iconed) icon.placeRelative(0, (height - icon.height) / 2)
-            name.placeRelative(start, (height - name.height) / 2)
-            placedNote?.placeRelative(loose.maxWidth - placedNote.width, (height - placedNote.height) / 2)
+            val nameTop = (height - name.height) / 2
+            name.placeRelative(start, nameTop)
+            // The note on the name's baseline, as words of two sizes on one line; centred when it has none.
+            placedNote?.let {
+                val line = name[FirstBaseline]
+                val own = it[FirstBaseline]
+                val top = if (line == AlignmentLine.Unspecified || own == AlignmentLine.Unspecified) {
+                    (height - it.height) / 2
+                } else {
+                    nameTop + line - own
+                }
+                it.placeRelative(loose.maxWidth - it.width, top)
+            }
         }
     }
 }

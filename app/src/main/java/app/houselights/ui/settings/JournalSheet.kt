@@ -113,7 +113,7 @@ internal fun JournalSheet(journal: JournalOpener, onDismiss: () -> Unit) {
 @Composable
 private fun ColumnScope.Notes() {
     val c = Hl.colors
-    Text(stringResource(R.string.journal_masked), style = Hl.type.meta, color = c.contentSecondary)
+    Text(stringResource(R.string.journal_masked), style = Hl.type.body, color = c.contentSecondary)
     Text(
         stringResource(R.string.journal_closes, formatDuration(JournalServer.LIFETIME_MS)),
         style = Hl.type.meta,

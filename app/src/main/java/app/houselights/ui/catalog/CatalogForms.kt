@@ -34,6 +34,7 @@ import app.houselights.core.ProviderCapabilities
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
+import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
@@ -122,7 +123,7 @@ private fun ColumnScope.FormSettings() {
                         stringResource(R.string.clear_image_cache),
                         description = stringResource(R.string.clear_cache_desc),
                         value = "151,5 Mo",
-                        valueStyle = Hl.type.jaquette,
+                        valueStyle = Hl.type.spec,
                         onClick = {},
                     )
                     HlSettingRow(stringResource(R.string.section_storage), value = "92,4 Mo")
@@ -306,7 +307,7 @@ private fun ColumnScope.FormFoldedFields() {
                         stringResource(R.string.nfs_identity_title),
                         description = stringResource(R.string.nfs_identity_desc),
                         value = stringResource(R.string.nfs_identity, uid, gid),
-                        valueStyle = Hl.type.jaquette,
+                        valueStyle = Hl.type.spec,
                         onClick = {},
                         valueBreaks = true,
                     )
@@ -345,7 +346,7 @@ private fun ColumnScope.FormFoldedFields() {
                     stringResource(R.string.nfs_identity_title),
                     description = stringResource(R.string.nfs_identity_desc),
                     value = stringResource(R.string.nfs_identity, LONG_ID, LONG_ID),
-                    valueStyle = Hl.type.jaquette,
+                    valueStyle = Hl.type.spec,
                     onClick = {},
                     valueBreaks = true,
                 )
@@ -645,13 +646,13 @@ private fun FormChoiceSettings() {
 private fun FormScrollAreas() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("framed, longer than its height: it fades where there is more", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(FORM_LONG_TEXT) }
+            HlScrollArea(Modifier.height(HeroDefaults.band)) { FormReading(FORM_LONG_TEXT) }
         }
         Specimen("lazy, the lines of an NFO: laid out as they show, read the same", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlScrollArea(FORM_NFO_LINES, Modifier.height(HlLayout.hero))
+            HlScrollArea(FORM_NFO_LINES, Modifier.height(HeroDefaults.band))
         }
         Specimen("framed, fits: takes no focus", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(listOf(FORM_SHORT_TEXT)) }
+            HlScrollArea(Modifier.height(HeroDefaults.band)) { FormReading(listOf(FORM_SHORT_TEXT)) }
         }
     }
 }

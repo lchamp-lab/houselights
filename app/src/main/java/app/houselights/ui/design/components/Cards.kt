@@ -87,6 +87,7 @@ import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlColors
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
@@ -650,6 +651,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
             modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
         )
         person.role?.let {
+            Spacer(Modifier.height(HlGap.nameToNote))
             Text(
                 it,
                 style = Hl.type.meta,
@@ -729,7 +731,7 @@ private fun BoxScope.AbsentFrame(title: String, year: Int?, said: String?) {
         Text(title, style = Hl.type.cardTitle, color = c.contentTertiary, maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (year != null) {
             Spacer(Modifier.height(HlSpace.xxs))
-            Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+            Text(year.toString(), style = Hl.type.meta, color = c.contentTertiary)
         }
         // Shown on focus only; at rest the grey conveys it.
         if (said != null) {
@@ -762,7 +764,7 @@ internal fun BoxScope.FallbackArtwork(title: String, year: Int?) {
         Text(title, style = Hl.type.cardTitle, color = c.content, maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (year != null) {
             Spacer(Modifier.height(HlSpace.xxs))
-            Text(year.toString(), style = Hl.type.badge, color = c.contentSecondary)
+            Text(year.toString(), style = Hl.type.meta, color = c.contentSecondary)
         }
     }
 }

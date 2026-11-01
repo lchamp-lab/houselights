@@ -70,6 +70,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlMotion
@@ -193,10 +194,10 @@ internal fun SheetWindow(
  * A full-height panel at the right edge for acting on or reading about what the screen shows (DESIGN.md,
  * Sheets), its glass in the film's dark ([sheetGlass]): its task's [title], what it is about in [facts] after its printed
  * [badges], ended by a [stateText] with its [state]'s dot, beside its [artwork], as tall as they are, and the
- * [places] it shows (an NFO's views) at the end of the title's line; then its plates, [HlSpace.m] apart, in the
- * film's light ([HlPlate]). [wide], a sheet holding the reading measure (an NFO). No Close button nor hint: Back or
- * [SheetScope.dismiss] closes it; [scroll] lets a text-only panel scroll, and without [scrolls] the content takes
- * the sheet's height and scrolls itself.
+ * [places] it shows (an NFO's views) at the end of the title's line; then its plates, [HlGap.plates] apart and a titled
+ * group a band from what precedes it ([GroupTitle]), in the film's light ([HlPlate]). [wide], a sheet holding the
+ * reading measure (an NFO). No Close button nor hint: Back or [SheetScope.dismiss] closes it; [scroll] lets a
+ * text-only panel scroll, and without [scrolls] the content takes the sheet's height and scrolls itself.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -244,6 +245,8 @@ fun HlSideSheet(
                     ),
             ) {
                 SheetHeader(SheetHead(title, facts, badges, stateText, state, description), artwork, places, status)
+                // Its content [HlGap.band] under a sentence, the facts' gap under facts alone.
+                val under = if (description != null) HlGap.band else HlSpace.fact
                 // Its plates fade into the sheet where there are more, never rising under its head; the room above and
                 // below them keeps a framed picture's light inside the scroll. Near its ends it scrolls to them
                 // ([SheetScroll]); what it holds scrolls as anywhere else.
@@ -254,10 +257,11 @@ fun HlSideSheet(
                     Column(
                         Modifier
                             .weight(1f)
-                            .padding(top = HlSpace.fact - HlFocus.room)
+                            .padding(top = under - HlFocus.room)
                             .then(if (scrolls) Modifier.scrollEdges(scroll, glass).verticalScroll(scroll) else Modifier)
-                            .padding(vertical = HlFocus.room),
-                        verticalArrangement = Arrangement.spacedBy(HlSpace.m),
+                            .padding(vertical = HlFocus.room)
+                            .dropGroupLead(),
+                        verticalArrangement = Arrangement.spacedBy(HlGap.plates),
                     ) { CompositionLocalProvider(LocalBringIntoViewSpec provides inside) { content(motion.sheet) } }
                 }
             }
@@ -345,8 +349,9 @@ private fun ColumnScope.SheetHeader(
         status()
     }
     if (head.description != null) {
-        Spacer(Modifier.height(HlSpace.l))
-        Text(head.description, style = Hl.type.meta, color = c.contentSecondary)
+        // Nearer its head than its content, as a pane's sentence.
+        Spacer(Modifier.height(HlSpace.m))
+        Text(head.description, style = Hl.type.body, color = c.contentSecondary)
     }
 }
 
@@ -355,7 +360,8 @@ private fun ColumnScope.SheetHeader(
 private fun HeadWords(head: SheetHead, capitalsAtTop: Boolean) {
     val c = Hl.colors
     Column {
-        // Its capitals level with the artwork's top; alone, its baseline where a pane's sits under the screen's edge.
+        // Its capitals level with the artwork's top; alone, its baseline on the screen title's, as a pane's.
+        val baseline = screenTitleBaseline()
         Text(
             head.title,
             style = Hl.type.subject,
@@ -365,7 +371,7 @@ private fun HeadWords(head: SheetHead, capitalsAtTop: Boolean) {
             modifier = if (capitalsAtTop) {
                 Modifier.capitalsAtTop(Hl.type.subject.fontSize)
             } else {
-                Modifier.paddingFromBaseline(top = HlSpace.xl)
+                Modifier.paddingFromBaseline(top = baseline)
             },
         )
         val facts = head.badges.isNotEmpty() || head.facts.any { !it.isNullOrBlank() }
@@ -376,7 +382,7 @@ private fun HeadWords(head: SheetHead, capitalsAtTop: Boolean) {
                 head.stateText?.let {
                     if (facts) Spacer(Modifier.width(HlSpace.fact))
                     StatusLight(head.state)
-                    Spacer(Modifier.width(HlSpace.xxs))
+                    Spacer(Modifier.width(HlGap.markToWord))
                     Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }

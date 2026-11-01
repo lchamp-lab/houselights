@@ -328,7 +328,7 @@ private fun FlowRow(
         value = value?.text,
         description = description,
         icon = icon,
-        valueStyle = if (value?.technical == true) Hl.type.jaquette else Hl.type.meta,
+        valueStyle = if (value?.technical == true) Hl.type.spec else Hl.type.body,
         onClick = onClick,
         enabled = enabled,
         valueBreaks = valueBreaks,

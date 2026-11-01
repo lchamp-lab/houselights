@@ -36,6 +36,7 @@ import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -129,7 +130,7 @@ private fun ShowcaseFacts(facts: List<String?>, state: String?, light: StatusSta
             Spacer(Modifier.width(HlSpace.fact))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StatusLight(light)
-                Spacer(Modifier.width(HlSpace.xxs))
+                Spacer(Modifier.width(HlGap.markToWord))
                 Text(state, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
