@@ -9,6 +9,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSettingGroupDefaults
 import app.houselights.ui.design.HlSize
@@ -22,7 +23,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** DESIGN.md, Secondary screens: a place is 48 tall, a row 52 in a pane's group as in a sheet, an icon included. */
+/**
+ * DESIGN.md, Secondary screens: a place is 48 tall, a row 52 in a pane's group as in a sheet, an icon included; a pane's
+ * plates follow one another at a plate's gap, a titled group a band from them.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -66,5 +70,19 @@ class SettingRowTest {
         assertEquals("the group's inset", HlSettingGroupDefaults.inset.value, (first.left - plate.left).value, 0.5f)
         assertEquals("the group's inset", HlSettingGroupDefaults.inset.value, (first.top - plate.top).value, 0.5f)
         assertEquals("the group's inset", HlSettingGroupDefaults.inset.value, (plate.bottom - second.bottom).value, 0.5f)
+    }
+
+    @Test
+    fun aPanesPlatesStandAPlatesGapApartAndATitledGroupABandFromThem() {
+        compose.setTvContent {
+            HlPlates {
+                HlSettingGroup(null, Modifier.testTag("one")) { HlSettingRow("Une", onClick = {}) }
+                HlSettingGroup(null, Modifier.testTag("two")) { HlSettingRow("Deux", onClick = {}) }
+                HlSettingGroup("Groupe", Modifier.testTag("three")) { HlSettingRow("Trois", onClick = {}) }
+            }
+        }
+        fun bounds(tag: String) = compose.onNodeWithTag(tag).getUnclippedBoundsInRoot()
+        assertEquals("plates without a title", HlGap.plates.value, (bounds("two").top - bounds("one").bottom).value, 0.5f)
+        assertEquals("a titled group", HlGap.band.value, (bounds("three").top - bounds("two").bottom).value, 0.5f)
     }
 }

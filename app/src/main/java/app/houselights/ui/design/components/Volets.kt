@@ -1196,7 +1196,7 @@ internal fun VerticalName(name: String, style: TextStyle, modifier: Modifier = M
 class VoletState(val words: String, val light: StatusState? = null, val lit: Boolean = false)
 
 /**
- * An open film's words, bottom-anchored in a hero's band ([HlLayout.hero]) and its title's width: its logo or its name
+ * An open film's words, bottom-anchored in a band ([VoletDefaults.words]) and its title's width: its logo or its name
  * in `headline` on two lines at most, broken at its separator ([titleLines]) ([title], [logo]), its facts
  * ([film]'s, as [MetaLine] gives them without genres, else its [year]) and its [state] last, never dropped first, then
  * two lines of [overview], their room kept without one.
@@ -1212,7 +1212,7 @@ fun VoletWords(
     modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
-    Box(modifier.fillMaxWidth().heightIn(min = textRoom(HlLayout.hero)), contentAlignment = Alignment.BottomStart) {
+    Box(modifier.fillMaxWidth().heightIn(min = textRoom(VoletDefaults.words)), contentAlignment = Alignment.BottomStart) {
         Column {
             TitleArt(
                 rememberTitleLines(title),

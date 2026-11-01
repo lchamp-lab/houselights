@@ -20,8 +20,8 @@ class DetailLayoutTest {
             val headerBottom = headerTop + grown
             // Dp sums in floats: a hundredth of a dp is less than a pixel.
             assertTrue("at $scale, the header ends at $headerBottom", headerBottom <= screen - HlSpace.safeV + 0.01.dp)
-            // Only pictures pass the safe area: the row's images start below it.
-            assertTrue("at $scale", headerBottom + HlSpace.xxs + HlSpace.s >= screen - HlSpace.safeV)
+            // The row's images show a strip and the block gap the actions' label room takes as its own, no more.
+            assertTrue("at $scale", headerBottom + HlSpace.xxs + HlSpace.s + HlLayout.detailGap >= screen - HlSpace.safeV - 0.01.dp)
         }
     }
 

@@ -1,7 +1,5 @@
 package app.houselights.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
@@ -27,9 +25,9 @@ import app.houselights.player.Redact
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.ChoiceCheck
+import app.houselights.ui.design.components.HlPlates
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
@@ -48,7 +46,7 @@ internal fun LazyListScope.playbackPane(s: AppSettings, server: Boolean, tracks:
             else -> R.string.playback_desc_folders
         }
         Section(stringResource(R.string.section_playback), sentence = stringResource(sentence)) {
-            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            HlPlates {
                 if (tracks) TracksGroup(s.tracks)
                 if (server) FileAccessGroup(s)
             }

@@ -65,6 +65,7 @@ import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
@@ -807,7 +808,7 @@ private fun Actions(
     // A tile may say a second line under its label: room for it from the start, so nothing moves.
     val hinted = hintsUnderTiles(item, capabilities, actions.tracks)
     OnArtwork {
-        HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
+        HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted, gap = HlLayout.detailGap) {
             PlayButtons(item, nextUp, memory, actions)
             Parts(item, memory, actions.onPlay)
             // A title to identify: Right then OK from Lire reaches it.
@@ -1217,7 +1218,8 @@ private fun EpisodesFailed(
     actionModifier: Modifier = Modifier,
 ) {
     Column(modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
-        header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
+        // Its failure a block's line under it, as panels stand under a header.
+        header?.let { SectionHeader(it, Modifier.padding(bottom = HlGap.inBlock)) }
         error?.let { PartFailed(it, retrying, onRetry, actionModifier = actionModifier) }
     }
 }

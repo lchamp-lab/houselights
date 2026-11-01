@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -144,7 +145,7 @@ private fun Fact(fact: StateFact, modifier: Modifier = Modifier) {
     val c = Hl.colors
     Column(modifier) {
         Text(fact.label, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
-        Spacer(Modifier.height(HlSpace.xxs))
+        Spacer(Modifier.height(HlGap.labelToValue))
         Row(verticalAlignment = Alignment.CenterVertically) {
             when {
                 fact.attention -> StatusLight(StatusState.Attention)

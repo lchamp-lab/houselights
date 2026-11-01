@@ -305,10 +305,10 @@ private fun ReadingHeroInfoSection() {
     Group("Hero info", still = true) {
         ReadingRow {
             Specimen("film, no artwork, in progress", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
-                HeroInfo(READING_HERO_FILM, Modifier.height(HlLayout.hero))
+                HeroInfo(READING_HERO_FILM)
             }
             Specimen("no rows yet: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) {
-                HeroInfo(null, Modifier.height(HlLayout.hero))
+                HeroInfo(null)
             }
         }
         ReadingRow {
@@ -327,7 +327,7 @@ private fun ReadingHeroInfoSection() {
 private fun ReadingHeroEpisodeSection() {
     Group("Hero info: episode", still = true) {
         Specimen("episode of a series, no artwork", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
-            HeroInfo(READING_HERO_EPISODE, Modifier.height(HlLayout.hero))
+            HeroInfo(READING_HERO_EPISODE)
         }
     }
 }
@@ -336,7 +336,7 @@ private fun ReadingHeroEpisodeSection() {
 private fun ReadingHeroLongTitleSection() {
     Group("Hero info: long title", still = true) {
         Specimen("two-line title in the hero’s height", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
-            HeroInfo(READING_HERO_LONG, Modifier.height(HlLayout.hero))
+            HeroInfo(READING_HERO_LONG)
         }
     }
 }

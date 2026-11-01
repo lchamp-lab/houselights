@@ -451,16 +451,19 @@ private fun Tile(
 
 /**
  * A row of actions that reserves room below for a tile's focus label, and for its hint's line when [hinted] (a tile
- * may have one on this screen), so nothing moves.
+ * may have one on this screen), so nothing moves; less the block [gap] that follows it, which the label takes as its
+ * own (a detail page's: max(gap, label) under the actions, never both).
  */
 @Composable
 fun HlActionRow(
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(HlSpace.s),
     hinted: Boolean = false,
+    gap: Dp = HlSpace.none,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val room = HlIconButtonDefaults.labelRoom + if (hinted) HlIconButtonDefaults.hintRoom else HlSpace.none
+    val label = HlIconButtonDefaults.labelRoom + if (hinted) HlIconButtonDefaults.hintRoom else HlSpace.none
+    val room = (label - gap).coerceAtLeast(HlSpace.none)
     Row(
         Modifier.padding(bottom = room).then(modifier),
         horizontalArrangement = horizontalArrangement,

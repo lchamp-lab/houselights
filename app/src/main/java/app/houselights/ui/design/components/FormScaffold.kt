@@ -150,12 +150,12 @@ private fun FormPanes(
 ) {
     val side: @Composable ColumnScope.() -> Unit = {
         TaskTitle(title)
-        // From its baselines: its first under the title, its last over what stands beside the form.
+        // From its baselines: its first a title's line under the title's, its last over what stands beside the form.
         Text(
             description,
             style = Hl.type.body,
             color = Hl.colors.contentSecondary,
-            modifier = Modifier.paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xl),
+            modifier = Modifier.paddingFromBaseline(top = sentenceUnder(Hl.type.headline), bottom = HlSpace.xl),
         )
         aside()
     }
@@ -230,8 +230,8 @@ fun StatusPanel(
     }
 }
 
-/** The name of a group of choices above them (a form's track), in white `group`. */
+/** The name of a group of choices above them (a form's track), in white `group`, its choices [HlSpace.s] under its baseline. */
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.group, color = Hl.colors.content, modifier = modifier.padding(bottom = HlSpace.xxs))
+    Text(text, style = Hl.type.group, color = Hl.colors.content, modifier = modifier.paddingFromBaseline(bottom = HlSpace.s))
 }

@@ -30,7 +30,6 @@ import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TitleLine
-import app.houselights.ui.design.textRoom
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.screenSizePx
@@ -93,7 +92,7 @@ private fun StressHeroSection() {
 
 @Composable
 private fun StressHero() {
-    HeroInfo(STRESS_HERO, Modifier.background(Hl.colors.content.copy(alpha = HlAlpha.FILL)).height(textRoom(HlLayout.hero)))
+    HeroInfo(STRESS_HERO, Modifier.background(Hl.colors.content.copy(alpha = HlAlpha.FILL)))
 }
 
 @Composable

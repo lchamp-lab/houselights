@@ -5,7 +5,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -36,6 +35,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.DefinitionPlate
 import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlGroup
+import app.houselights.ui.design.components.HlPlates
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
@@ -59,13 +59,15 @@ internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows, 
     item(key = "about-status") { AboutStatus(jellyfin) }
     // Only in a build that updates itself (the project's release): the others never check.
     if (updates != null) item(key = "about-updates") { UpdatesGroup(updates, rows) }
-    item(key = "about-credits") { AboutCredits() }
-    item(key = "about-rows") {
-        HlSettingGroup(null, Modifier.revealOnFocus()) {
-            SupportRow()
-            JournalRow()
-            // Debug builds only: the design system catalogue, last.
-            if (BuildConfig.DEBUG) HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog)
+    item(key = "about-credits") {
+        HlPlates {
+            AboutCredits()
+            HlSettingGroup(null, Modifier.revealOnFocus()) {
+                SupportRow()
+                JournalRow()
+                // Debug builds only: the design system catalogue, last.
+                if (BuildConfig.DEBUG) HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog)
+            }
         }
     }
 }
@@ -124,14 +126,16 @@ internal fun AboutStatus(jellyfin: Boolean, vm: AboutViewModel = aboutViewModel(
         snapshotFlow { asked.facts == null }.drop(1).filter { it }.collect { reread() }
     }
     Column {
-        HlGroup(stringResource(R.string.about_status)) { DeviceFacts(device, vm.player, vm.api) }
-        TrustRow(
-            vm.player,
-            onClick = {
-                asked.ask()
-                if (asked.facts == null) reread()
-            },
-        )
+        HlPlates {
+            HlGroup(stringResource(R.string.about_status)) { DeviceFacts(device, vm.player, vm.api) }
+            TrustRow(
+                vm.player,
+                onClick = {
+                    asked.ask()
+                    if (asked.facts == null) reread()
+                },
+            )
+        }
         PlayerTrustSheet(asked, jellyfin)
     }
 }
@@ -151,7 +155,7 @@ private fun rememberTrustAsked(): TrustAsked {
 @Composable
 internal fun TrustRow(player: PlayerStatus?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val changed = (player as? PlayerStatus.Unrecognized)?.takeIf { it.reason == Decision.CHANGED } ?: return
-    HlSettingGroup(null, modifier.padding(top = HlSpace.m).revealOnFocus()) {
+    HlSettingGroup(null, modifier.revealOnFocus()) {
         HlSettingRow(stringResource(R.string.trust_player), description = trustDescription(changed.facts), onClick = onClick)
     }
 }

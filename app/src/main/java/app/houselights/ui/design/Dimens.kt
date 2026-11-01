@@ -54,6 +54,8 @@ object HlShapes {
 /**
  * Inner padding of containers, four steps, so the same kind of thing breathes the same everywhere: [tight] 8, [plate]
  * 20, [card] 24, [sheet] 32. A menu's 6 and a group's 4 follow from radii ([HlMenuDefaults], [HlSettingGroupDefaults]).
+ * Words over a picture keep the inset of what holds them: a door's band [HlSpace.s], the case [HlSpace.m], a showcase
+ * among a pane's plates [plate], a saga's open panel [card].
  */
 object HlInset {
     /** Results holding a thumbnail. */
@@ -61,11 +63,12 @@ object HlInset {
 
     /**
      * Words from the sides of any plate, whatever it holds (facts, definitions, a status, a table, glass read through, a
-     * code): where a group's rows set theirs, so text keeps one edge down a pane; a status's state from its top.
+     * code, a showcase's posters): where a group's rows set theirs, so text keeps one edge down a pane; a status's state
+     * from its top.
      */
     val plate = 20.dp
 
-    /** Panels and cards all round; a plate's top and foot; words over a picture 400 wide or more. */
+    /** Panels and cards all round; a plate's top and foot; words over a saga's open panel. */
     val card = HlSpace.l
     val sheet = HlSpace.xl
 }
@@ -250,11 +253,6 @@ object HlLayout {
     /** Clear logo or title of a detail page. */
     val titleArtWidth = 440.dp
     val titleArtHeight = 104.dp
-    /**
-     * The hero band of « À regarder » (and of a person's page), [HlSpace.l] from its title and its rows: logo, facts, two
-     * overview lines, [HlSpace.s] apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
-     */
-    val hero = 148.dp
     /** Title line above a poster wall, in `rowTitle`: 28 at the default text size, growing with it. */
     val infoLine: Dp
         @Composable @ReadOnlyComposable
@@ -264,8 +262,11 @@ object HlLayout {
     val episodeOverview = 72.dp
     /** Between detail page blocks: wider than [HlFocus.edge], so the block above leaves as the next arrives. */
     val detailGap = HlSpace.xl
-    /** The first row's visible part under a detail hero: gap, header, its gap and focus room, a strip of images. */
-    private fun detailPeek(header: Dp) = detailGap + header + HlSpace.xxs + HlFocus.room + HlSpace.s
+    /**
+     * The first row's visible part under a detail hero: gap, header, its gap and focus room, a strip of images; and the
+     * block gap again, which the actions' label room takes as its own ([HlActionRow]'s gap), so the row rises by it.
+     */
+    private fun detailPeek(header: Dp) = detailGap * 2 + header + HlSpace.xxs + HlFocus.room + HlSpace.s
     /** Least height of a detail hero on a [screen]: all but [detailPeek], keeping a [header] in the safe area. */
     internal fun detailHeroMin(screen: Dp, header: Dp): Dp = screen - detailPeek(header)
 
@@ -331,13 +332,13 @@ object HlLayout {
      * The band a backdrop's or a logo's sheet takes at the screen's foot, under the title previewed in the light of the
      * choice with focus, at the viewer's text size: the held name of the section of the line with focus, the wall's room,
      * that line, a [cell] tall, its words (« Automatique », and a saga's film's year with [film]) inside the safe area,
-     * then the gap to the next line and its top ([HlSpace.m]), cut by the screen's edge: 210 for a film's backdrops at
+     * then the gap to the next line and its top ([HlSpace.m]), cut by the screen's edge: 214 for a film's backdrops at
      * the default text size.
      */
     @Composable
     @ReadOnlyComposable
     fun choiceBand(cell: Dp, film: Boolean): Dp {
-        val words = HlSpace.xs + textRoom(Hl.type.cardName) + if (film) textRoom(Hl.type.meta) else HlSpace.none
+        val words = HlGap.imageToCaption + textRoom(Hl.type.cardName) + if (film) textRoom(Hl.type.meta) else HlSpace.none
         return textRoom(Hl.type.rowTitle) + HlFocus.wallRoom + cell + words + HlSpace.l + HlSpace.m
     }
     /** The two columns of the welcome screen: the choices' holds its title on one line in French. */
@@ -470,10 +471,20 @@ internal object FirstScanDefaults {
     const val STEP_MS = 2_000L
 }
 
-/** The logo or title of a hero: « À regarder », a person's page. */
+/** The logo or title of a hero: « À regarder », a person's page; the overview's lines it shows, and its band. */
 internal object HeroDefaults {
     val titleWidth = 380.dp
     val titleHeight = 56.dp
+    const val OVERVIEW_LINES = 2
+
+    /**
+     * The band, [HlSpace.l] from its screen's title and its rows, measured in boxes at the viewer's text size: logo, a
+     * line of facts or an episode's heading, two overview lines, [HlGap.inBlock] apart (56 + 12 + 16.3 + 12 + 40.3 =
+     * 136.6 at 1), so its words stand on its foot and a focused poster's stays in the safe area.
+     */
+    val band: Dp
+        @Composable get() = titleHeight + HlGap.inBlock * 2 +
+            maxOf(textBox(Hl.type.meta), textBox(Hl.type.entry)) + textBox(Hl.type.body, OVERVIEW_LINES)
 }
 
 /**
@@ -492,6 +503,9 @@ internal object VoletDefaults {
 
     /** Over [melt] above its words' top an open panel's picture melts into its dark, whole [melt] under it. */
     val melt = 64.dp
+
+    /** Least height of an open panel's words, bottom-anchored: logo, facts, two overview lines in lines (56 + 12 + 20 + 12 + 48). */
+    val words = 148.dp
 
     /** A panel's number under its top edge. */
     val numberTop = HlSpace.m

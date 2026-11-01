@@ -41,6 +41,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlControl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -225,7 +226,7 @@ private fun Jaquette(lines: List<CaseLine>, modifier: Modifier = Modifier) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(line.glyph, contentDescription = line.name, tint = c.contentSecondary, modifier = Modifier.size(HlSize.inlineIcon))
                 Spacer(Modifier.width(HlSpace.l))
-                OneLine(spacing = HlSpace.m, squeezeFirst = false) {
+                OneLine(spacing = HlGap.fact, squeezeFirst = false) {
                     line.words.forEach {
                         val ink = if (it.measure || it.detail) c.contentSecondary else c.content
                         Text(it.label, style = it.style, color = ink, maxLines = 1, softWrap = false)

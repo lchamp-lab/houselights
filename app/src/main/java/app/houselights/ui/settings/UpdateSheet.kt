@@ -34,6 +34,7 @@ import androidx.tv.material3.Text
 import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalLaunchScreen
@@ -387,7 +388,7 @@ private fun WhatsNew(offer: UpdateOffer, scroll: ScrollState) {
     ReadingPlate(Modifier.fillMaxWidth().focusProperties { canFocus = scroll.maxValue > 0 }.readsThrough(scroll)) {
         Text(stringResource(R.string.update_notes), style = Hl.type.group, color = c.content)
         Spacer(Modifier.height(HlSpace.m))
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+        Column(verticalArrangement = Arrangement.spacedBy(HlGap.paragraph)) {
             notes.forEach { Text(it, style = Hl.type.body, color = c.contentSecondary) }
         }
     }

@@ -37,6 +37,7 @@ import app.houselights.core.Person
 import app.houselights.core.PersonPage
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -59,7 +60,6 @@ import app.houselights.ui.design.components.artworkEdge
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.rememberFocusMemory
-import app.houselights.ui.design.textRoom
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterActions
 import app.houselights.ui.library.PosterOptions
@@ -160,10 +160,10 @@ internal fun PersonBands(
                 .focusKey(FocusKey.item(item.id), memory)
                 .then(if (index == 0) Modifier.focusRequester(first) else Modifier)
             if (small) {
-                Spacer(Modifier.height(HlSpace.l))
+                Spacer(Modifier.height(HlGap.headToContent))
                 // A fixed height that fits the text at the viewer's text size, whatever has focus.
-                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH).height(textRoom(HlLayout.hero)), notSaved = said)
-                Spacer(Modifier.height(HlSpace.l))
+                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH), notSaved = said)
+                Spacer(Modifier.height(HlGap.band))
                 MediaRow(header = null) {
                     items(titles.size, key = { titles[it].id }) { i ->
                         val item = titles[i]
@@ -180,7 +180,7 @@ internal fun PersonBands(
             } else {
                 // The selected title on one line, as on a wall, shown together with its backdrop.
                 Box(
-                    Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m).height(HlLayout.infoLine),
+                    Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlGap.headToOwnLine).height(HlLayout.infoLine),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     WithItsPicture(shown) { TitleLine(it, notSaved = notSaved.saidFor(it.id)) }

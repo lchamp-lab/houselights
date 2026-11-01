@@ -102,14 +102,8 @@ class TypeScaleTest {
 
     @Test
     fun framesMeasuredFromTheTypeHoldItsLines() {
-        // A hero's band, written in dp: its logo, a line of facts or an episode's heading, two overview lines.
-        with(HouselightsType) {
-            val words = HeroDefaults.titleHeight.value + HlSpace.s.value + maxOf(meta.lineHeight.value, entry.lineHeight.value) +
-                HlSpace.s.value + HERO_OVERVIEW_LINES * body.lineHeight.value
-            assertEquals(words, HlLayout.hero.value, 0f)
-            // An episode's overview, whole lines of body.
-            assertEquals(0f, HlLayout.episodeOverview.value % body.lineHeight.value, 0f)
-        }
+        // An episode's overview, whole lines of body; a hero's band is measured in boxes (HomeLayoutTest).
+        assertEquals(0f, HlLayout.episodeOverview.value % HouselightsType.body.lineHeight.value, 0f)
     }
 
     @Test
@@ -206,8 +200,5 @@ class TypeScaleTest {
         /** DESIGN.md's floor a voice: what is read, the poster's. */
         const val READING_FLOOR = 13f
         const val POSTER_FLOOR = 16f
-
-        /** The overview lines `HeroInfo` sets under the facts. */
-        const val HERO_OVERVIEW_LINES = 2
     }
 }

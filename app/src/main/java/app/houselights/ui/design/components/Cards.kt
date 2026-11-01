@@ -87,6 +87,7 @@ import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlColors
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
@@ -650,6 +651,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
             modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
         )
         person.role?.let {
+            Spacer(Modifier.height(HlGap.nameToNote))
             Text(
                 it,
                 style = Hl.type.meta,

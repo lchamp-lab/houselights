@@ -30,6 +30,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlPlate
+import app.houselights.ui.design.components.HlPlates
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.MeterFact
@@ -41,9 +42,13 @@ import kotlinx.coroutines.launch
 
 internal fun LazyListScope.storagePane(storage: StorageStats?) {
     item(key = "storage") {
-        Section(stringResource(R.string.section_storage), sentence = stringResource(R.string.storage_desc)) { StorageSummary(storage) }
+        Section(stringResource(R.string.section_storage), sentence = stringResource(R.string.storage_desc)) {
+            HlPlates {
+                StorageSummary(storage)
+                StorageActions(storage)
+            }
+        }
     }
-    item(key = "storage-actions") { StorageActions(storage) }
 }
 
 /**

@@ -26,12 +26,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.TraktSession
 import app.houselights.providers.trakt.TraktSyncState
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.DeviceCodePlate
@@ -91,7 +93,7 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean, 
         }
         // The rows, but while the code waits; the row asking for it keeps focus until the code has it.
         if (vm.available && (!vm.connecting || focus.asked)) {
-            Spacer(Modifier.height(HlSpace.l))
+            Spacer(Modifier.height(rowsGap(code = vm.connecting, waited = focus.waited, account = live != null)))
             TraktRows(
                 // A session kept but not read is disconnected as one connected, never connected over.
                 connected = live != null || !folders || kept,
@@ -110,6 +112,10 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean, 
         }
     }
 }
+
+/** Over the rows: a plate's gap under the [code] (shown, or [waited] on) or the [account], the head's under the head alone. */
+private fun rowsGap(code: Boolean, waited: Boolean, account: Boolean): Dp =
+    if (code || waited || account) HlGap.plates else HlGap.headToContent
 
 /**
  * Connected while Trakt could not say the name: it is read ([onRead]) once the pane shows with the [folders]. Paused,
@@ -211,7 +217,7 @@ private fun Account(name: String?, sync: TraktSyncState) {
             Column(Modifier.weight(1f)) {
                 if (name != null) {
                     Text(stringResource(R.string.trakt_account), style = Hl.type.meta, color = c.contentSecondary)
-                    Spacer(Modifier.height(HlSpace.xxs))
+                    Spacer(Modifier.height(HlGap.labelToValue))
                     Text(name, style = Hl.type.subject, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(HlSpace.m))
                 }

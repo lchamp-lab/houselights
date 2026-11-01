@@ -32,6 +32,7 @@ import app.houselights.R
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
@@ -139,7 +140,7 @@ internal fun Welcome(
                 verticalArrangement = Arrangement.Center,
             ) {
                 TaskTitle(stringResource(R.string.welcome_title))
-                Spacer(Modifier.height(HlSpace.m))
+                Spacer(Modifier.height(HlGap.headToContent))
                 WelcomeDoors(
                     listOf(
                         SourceChoice(

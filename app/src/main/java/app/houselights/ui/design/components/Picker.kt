@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -105,7 +106,7 @@ fun ArtworkChoiceCard(
             if (selected) SelectedMark(markCorner())
         }
         if (name != null || detail != null) {
-            Spacer(Modifier.height(HlSpace.xs))
+            Spacer(Modifier.height(HlGap.imageToCaption))
             // Past its column when the next has no words; faded across the safe area's margin, as a card's name is.
             val words = Modifier.wrapContentWidth(Alignment.Start, unbounded = true).width(captionWidth)
             ChoiceWords(name, detail, words.fadeOutsideSafeArea())
@@ -171,7 +172,7 @@ fun ArtworkPrint(
             }
             if (drawn.selected) SelectedMark(markCorner())
         }
-        Spacer(Modifier.height(HlSpace.xs))
+        Spacer(Modifier.height(HlGap.imageToCaption))
         PrintWords(drawn.name, drawn.detail)
     }
 }
@@ -251,7 +252,7 @@ fun GalleryTile(
                 pictureModifier = if (logo) Modifier.padding(horizontal = HlSpace.l, vertical = HlSpace.m) else Modifier,
             ) { EmptyFrame(Modifier.fillMaxSize(), artwork) }
         }
-        Spacer(Modifier.height(HlSpace.xs))
+        Spacer(Modifier.height(HlGap.imageToCaption))
         Text(
             name,
             style = Hl.type.cardName,

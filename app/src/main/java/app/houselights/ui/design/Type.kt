@@ -3,6 +3,7 @@ package app.houselights.ui.design
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.AlignmentLine
@@ -15,6 +16,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Dp
@@ -253,3 +255,16 @@ fun textRoom(height: Dp): Dp = with(LocalDensity.current) { height.value.sp.toDp
 @Composable
 @ReadOnlyComposable
 fun textRoom(style: TextStyle): Dp = with(LocalDensity.current) { style.lineHeight.toDp() }
+
+/**
+ * The box [lines] lines of [style] take, at the viewer's text size, as `Trim.Both` sets them: letters top to bottom,
+ * line heights between them only (`body`, two lines: 40.3 at 1). A frame measured in boxes holds its text exactly.
+ */
+@Composable
+fun textBox(style: TextStyle, lines: Int = 1): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    return remember(style, lines, density) {
+        with(density) { measurer.measure(List(lines) { "H" }.joinToString("\n"), style).size.height.toDp() }
+    }
+}
