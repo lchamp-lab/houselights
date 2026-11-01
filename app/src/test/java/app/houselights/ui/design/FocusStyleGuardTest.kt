@@ -62,7 +62,10 @@ class FocusStyleGuardTest {
         assertTrue("A focusable surface without a FocusStyle gesture:\n" + missing.joinToString("\n"), missing.isEmpty())
     }
 
-    /** A row's one frame is the focus of its cards: a control in a row would show focus twice, its own and the frame left behind. */
+    /**
+     * A row's one frame is the focus of its cards: a control in a row would show focus twice, its own and the frame left
+     * behind. A wall's foot may hold one (PartFailed's Réessayer): the frame goes out as its card loses focus.
+     */
     @Test
     fun aRowHoldsOnlyFramedCards() {
         val ui = File("src/main/java/app/houselights/ui")
