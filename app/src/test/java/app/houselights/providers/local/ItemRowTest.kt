@@ -21,7 +21,7 @@ import java.util.Collections
 
 /**
  * The hand-written [ITEM_ROW], [CARD_ROW] and [WALL_ROW] match Room's [ItemEntity] table (a missing column reads null
- * silently), no list reads the NFO text or the media JSON, too heavy per card, and no wall the text only a page shows.
+ * silently), no list reads the NFO texts' table or the media JSON, too heavy per card, and no wall the text only a page shows.
  */
 @RunWith(RobolectricTestRunner::class)
 class ItemRowTest {
@@ -41,18 +41,19 @@ class ItemRowTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "name:alien", name = "Alien", sortTitle = "alien"))
         fun item(kind: ItemKind, title: String, parentId: Long? = null, seriesId: Long? = null, positionMs: Long = 0) = ItemEntity(
             kind = kind, sourceId = source, title = title, sortTitle = title.lowercase(), parentId = parentId, seriesId = seriesId,
-            filePath = "$title.mkv", nfoPath = "$title.nfo", nfo = "<movie><plot>$title</plot></movie>", genres = listOf("Drame"),
+            filePath = "$title.mkv", nfoPath = "$title.nfo", genres = listOf("Drame"),
             overview = "What $title tells", tagline = "In space no one can hear $title",
             collectionId = saga.takeIf { kind == ItemKind.MOVIE }, positionMs = positionMs, seasonNumber = 1, episodeNumber = 1,
             addedAt = 0,
         )
-        dao.insert(item(ItemKind.MOVIE, "Alien"))
-        dao.insert(item(ItemKind.MOVIE, "Aliens", positionMs = 60_000))
+        suspend fun insert(item: ItemEntity) = dao.insertWithNfo(item, "<movie><plot>${item.title}</plot></movie>")
+        insert(item(ItemKind.MOVIE, "Alien"))
+        insert(item(ItemKind.MOVIE, "Aliens", positionMs = 60_000))
         // A film of no saga, among a grouped wall's sagas.
-        dao.insert(item(ItemKind.MOVIE, "Heat").copy(collectionId = null))
-        val series = dao.insert(item(ItemKind.SERIES, "Severance"))
-        val season = dao.insert(item(ItemKind.SEASON, "Saison 1", parentId = series, seriesId = series))
-        dao.insert(item(ItemKind.EPISODE, "Good News About Hell", parentId = season, seriesId = series, positionMs = 60_000))
+        insert(item(ItemKind.MOVIE, "Heat").copy(collectionId = null))
+        val series = insert(item(ItemKind.SERIES, "Severance"))
+        val season = insert(item(ItemKind.SEASON, "Saison 1", parentId = series, seriesId = series))
+        insert(item(ItemKind.EPISODE, "Good News About Hell", parentId = season, seriesId = series, positionMs = 60_000))
         queries.clear()
     }
 
@@ -66,8 +67,8 @@ class ItemRowTest {
         }
         val row = ITEM_ROW.split(',').map { it.trim() }
         assertEquals("Named twice in ITEM_ROW", emptyList<String>(), row.groupBy { it }.filterValues { it.size > 1 }.keys.toList())
-        assertTrue("ITEM_ROW reads the NFO text", "NULL AS nfo" in row)
-        assertEquals(columns.sorted(), row.map { if (it == "NULL AS nfo") "nfo" else it }.sorted())
+        assertTrue("items holds the NFO text", "nfo" !in columns)
+        assertEquals(columns.sorted(), row.sorted())
 
         val card = CARD_ROW.split(',').map { it.trim() }
         assertEquals("CARD_ROW is ITEM_ROW but what the file holds", row.map { if (it == "mediaInfo") "NULL AS mediaInfo" else it }, card)
@@ -115,7 +116,7 @@ class ItemRowTest {
     @Test
     fun listsNeverReadTheNfoTextNorWhatFilesHold() = runTest {
         val read = browseEveryList()
-        assertTrue("No list went through CARD_ROW: ${read.joinToString("\n")}", read.any { "NULL AS nfo" in it })
+        assertTrue("No list went through CARD_ROW: ${read.joinToString("\n")}", read.any { "NULL AS mediaInfo" in it })
         assertEquals("Lists reading the NFO text", emptyList<String>(), read.filter(::readsNfo).distinct())
         assertEquals("Lists reading what files hold", emptyList<String>(), read.filter { reads(it, "mediaInfo") }.distinct())
     }
@@ -143,11 +144,12 @@ class ItemRowTest {
     @Test
     fun theRuleCatchesWhatItShould() {
         listOf(
-            "SELECT * FROM items WHERE kind = 'MOVIE'",
-            "SELECT i.* FROM items i JOIN collections c ON c.id = i.collectionId",
-            "SELECT id, title, nfo FROM items WHERE parentId = ?",
+            "SELECT nfo FROM item_nfos WHERE itemId = ?",
+            "SELECT i.sourceId, i.nfoPath, n.nfo FROM items i LEFT JOIN item_nfos n ON n.itemId = i.id WHERE i.id = ?",
+            "DELETE FROM item_nfos WHERE itemId IN (SELECT id FROM items WHERE kind = 'SEASON')",
         ).forEach { assertTrue(it, readsNfo(it)) }
         listOf(
+            "SELECT * FROM items WHERE kind = 'MOVIE'",
             "SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' LIMIT 50 OFFSET 0",
             "SELECT COUNT(*) FROM items WHERE kind = 'MOVIE'",
             "SELECT c.* FROM collections c JOIN (SELECT collectionId, COUNT(*) AS n FROM items GROUP BY collectionId) s " +
@@ -156,7 +158,8 @@ class ItemRowTest {
         ).forEach { assertFalse(it, readsNfo(it)) }
     }
 
-    private fun readsNfo(sql: String): Boolean = reads(sql, "nfo")
+    /** Whether [sql] touches the NFO texts' table ([NfoEntity]). */
+    private fun readsNfo(sql: String): Boolean = Regex("""\bitem_nfos\b""", RegexOption.IGNORE_CASE).containsMatchIn(sql)
 
     /** Whether [sql] reads [column] of items: all their columns (`*`, `items.*`, an alias's), or that one by its name. */
     private fun reads(sql: String, column: String): Boolean {

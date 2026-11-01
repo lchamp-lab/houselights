@@ -73,8 +73,13 @@ internal fun suggestionRows(item: Long, offered: List<Scored>): List<SuggestionE
     )
 }
 
-/** The row's stored NFO, parsed; null without one. */
-internal fun ItemEntity.nfoInfo(): NfoInfo? = nfo?.let(NfoParser::parse)
+/** Row [id]'s stored NFO ([NfoDao.nfoText]), parsed; null without one. */
+internal suspend fun LibraryDao.nfoInfo(id: Long): NfoInfo? = nfoText(id)?.let(NfoParser::parse)
+
+/** Keeps the NFO a pass [read] as row [id]'s ([NfoDao.setNfo]); null leaves the stored one. */
+internal suspend fun LibraryDao.keepNfo(id: Long, read: KeptNfo?) {
+    if (read != null) setNfo(id, read.text)
+}
 
 /** Caches [local]'s images ([ScanFiles.copyArtwork]); null where missing or the copy failed. */
 internal suspend fun ScanFiles.copyArt(source: SourceEntity, local: VideoSidecars): LocalArt {

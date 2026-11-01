@@ -38,6 +38,17 @@ internal const val TO_IDENTIFY =
         "AND +missingSince IS NULL AND (kind = 'MOVIE' OR NOT EXISTS ($EPISODES_OF_SHOW) " +
         "OR EXISTS ($EPISODES_OF_SHOW AND e.missingSince IS NULL))"
 
+/** Seasons without episodes ([LibraryDao.deleteEmptySeasons]). */
+private const val EMPTY_SEASONS =
+    "SELECT id FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)"
+
+/** Shows without seasons ([LibraryDao.deleteEmptySeries]). */
+private const val EMPTY_SERIES =
+    "SELECT id FROM items WHERE kind = 'SERIES' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)"
+
+/** Films and episodes of removed sources ([LibraryDao.deleteOrphanItems]). */
+private const val ORPHAN_FILES = "SELECT id FROM items WHERE kind IN ('MOVIE', 'EPISODE') AND sourceId NOT IN (SELECT id FROM sources)"
+
 /** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
 private const val TRACK_KEYS = "SELECT $TRACK_KEY FROM items i WHERE i.kind IN ('MOVIE', 'SERIES')"
 
@@ -116,7 +127,7 @@ data class EpisodePlace(
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
  * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao],
- * [IgnoredFileDao], [FirstTitleDao], [SagaDao], [CopyDao], [CopyHeirDao], [EpisodePathDao] or [RecheckDao].
+ * [IgnoredFileDao], [FirstTitleDao], [SagaDao], [CopyDao], [CopyHeirDao], [EpisodePathDao], [RecheckDao] or [NfoDao].
  */
 @Dao
 interface LibraryDao :
@@ -132,7 +143,8 @@ interface LibraryDao :
     CopyDao,
     CopyHeirDao,
     EpisodePathDao,
-    RecheckDao {
+    RecheckDao,
+    NfoDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
@@ -177,25 +189,15 @@ interface LibraryDao :
         insertSearchWords(SearchWords.rows(SearchKind.TITLE, item.id.toString(), item.title, item.originalTitle))
     }
 
-    /** The full row, NFO text included: for writing back during a scan, and for the player's artwork. */
+    /** The full row: for writing back during a scan. */
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun item(id: Long): ItemEntity?
 
-    /** The row without its NFO text, which can reach 1 MB ([ITEM_ROW]); used by the title page. */
+    /** The row ([ITEM_ROW]); used by the title page. */
     @Query("SELECT $ITEM_ROW FROM items WHERE id = :id")
     suspend fun itemRow(id: Long): ItemEntity?
 
-    @Query("SELECT sourceId, nfoPath, nfo FROM items WHERE id = :id")
-    suspend fun nfoOf(id: Long): ItemNfo?
-
-    @Query("SELECT id, nfo FROM items WHERE id IN (:ids) AND nfo IS NOT NULL")
-    suspend fun nfosBatch(ids: List<Long>): List<RowNfo>
-
-    /** The NFO text of each row of [ids] that has one, by id: a query per [SQL_IN_LIMIT] rows. */
-    suspend fun nfosOf(ids: List<Long>): Map<Long, String> =
-        ids.chunked(SQL_IN_LIMIT).flatMap { nfosBatch(it) }.associate { it.id to it.nfo }
-
-    /** A source's file rows without NFO text; used by tests to inspect a scan's result. */
+    /** A source's file rows; used by tests to inspect a scan's result. */
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
     suspend fun filesOf(sourceId: Long): List<ItemEntity>
 
@@ -452,9 +454,12 @@ interface LibraryDao :
     @Query("DELETE FROM items WHERE id IN (:ids)")
     suspend fun deleteItemBatch(ids: List<Long>)
 
-    /** Deletes any number of items, [SQL_IN_LIMIT] per statement, atomically. */
+    /** Deletes any number of items and their NFOs, [SQL_IN_LIMIT] per statement, atomically. */
     @Transaction
-    suspend fun deleteItems(ids: List<Long>) = ids.chunked(SQL_IN_LIMIT).forEach { deleteItemBatch(it) }
+    suspend fun deleteItems(ids: List<Long>) = ids.chunked(SQL_IN_LIMIT).forEach {
+        deleteItemBatch(it)
+        forgetNfosBatch(it)
+    }
 
     /**
      * Points a row at its replacement file ([MissingFiles]): another size resets the probe, the same size is a rename.
@@ -660,17 +665,19 @@ interface LibraryDao :
         return own || given.isNotEmpty()
     }
 
-    @Query(
-        "DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN " +
-            "(SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)",
-    )
-    suspend fun deleteEmptySeasons()
+    @Query(EMPTY_SEASONS)
+    suspend fun seasonsWithoutEpisodes(): List<Long>
 
-    @Query(
-        "DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN " +
-            "(SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)",
-    )
-    suspend fun deleteEmptySeries()
+    /** Deletes seasons without episodes ([deleteItems]). */
+    @Transaction
+    suspend fun deleteEmptySeasons() = deleteItems(seasonsWithoutEpisodes())
+
+    @Query(EMPTY_SERIES)
+    suspend fun seriesWithoutSeasons(): List<Long>
+
+    /** Deletes shows without seasons ([deleteItems]). */
+    @Transaction
+    suspend fun deleteEmptySeries() = deleteItems(seriesWithoutSeasons())
 
     /** Shows of folders still there that have no episode left. */
     @Query(
@@ -692,9 +699,12 @@ interface LibraryDao :
         deleteEmptySeries()
     }
 
-    /** Deletes films and episodes of removed sources; shows and seasons, which can span sources, go once empty. */
-    @Query("DELETE FROM items WHERE kind IN ('MOVIE', 'EPISODE') AND sourceId NOT IN (SELECT id FROM sources)")
-    suspend fun deleteOrphanItems()
+    @Query(ORPHAN_FILES)
+    suspend fun orphanFiles(): List<Long>
+
+    /** Deletes films and episodes of removed sources ([deleteItems]); shows and seasons, which can span sources, go once empty. */
+    @Transaction
+    suspend fun deleteOrphanItems() = deleteItems(orphanFiles())
 
     /**
      * Moves shows and seasons of removed sources to a remaining episode's source, so its card counts them. Run after

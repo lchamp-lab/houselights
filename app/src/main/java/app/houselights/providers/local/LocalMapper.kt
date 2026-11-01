@@ -185,7 +185,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         LOGO(ItemEntity::userLogoPath, ItemEntity::logoPath, NfoInfo::logoUrl, ImageType.LOGO),
     }
 
-    private fun webArtwork(e: ItemEntity, show: ItemEntity?, art: PlayerArt): ImageRef? {
+    private suspend fun webArtwork(e: ItemEntity, show: ItemEntity?, art: PlayerArt): ImageRef? {
         val owners = listOfNotNull(e, show)
         // Give the player nothing when the screens show no artwork for the item or its show.
         if (owners.none { LocalProvider.shown(art.user(it), art.automatic(it)) != null }) return null
@@ -193,13 +193,13 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         return owners.firstNotNullOfOrNull { webCandidate(it, art) }?.let { LocalProvider.image(it, art.type) }
     }
 
-    /** The first web URL among [x]'s displayed, automatic and NFO images; null when the user chose none. */
-    private fun webCandidate(x: ItemEntity, art: PlayerArt): String? {
+    /** The first web URL among [x]'s displayed, automatic and NFO images, its NFO read last; null when the user chose none. */
+    private suspend fun webCandidate(x: ItemEntity, art: PlayerArt): String? {
         if (art.user(x)?.isEmpty() == true) return null
-        return listOf(
+        return listOf<suspend () -> String?>(
             { LocalProvider.shown(art.user(x), art.automatic(x)) },
             { art.automatic(x) },
-            { x.nfo?.let(NfoParser::parse)?.let(art.nfo) },
+            { dao.nfoText(x.id)?.let(NfoParser::parse)?.let(art.nfo) },
         ).firstNotNullOfOrNull { candidate -> candidate()?.takeUnless { it.isEmpty() || it.isCachedArtwork() } }
     }
 
