@@ -88,7 +88,7 @@ android {
         targetSdk = 35
         // The release's own is set with its variant (androidComponents, below).
         versionCode = 1
-        versionName = "0.3.0"
+        versionName = "0.4.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         buildConfigField("String", "TRAKT_CLIENT_ID", "\"${traktClientId.trim()}\"")
         buildConfigField("String", "TRAKT_CLIENT_SECRET", "\"${traktClientSecret.trim()}\"")
