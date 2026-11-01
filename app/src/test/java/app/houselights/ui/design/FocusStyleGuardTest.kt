@@ -63,8 +63,9 @@ class FocusStyleGuardTest {
     }
 
     /**
-     * A row's one frame is the focus of its cards: a control in a row would show focus twice, its own and the frame left
-     * behind. A wall's foot may hold one (PartFailed's Réessayer): the frame goes out as its card loses focus.
+     * A row's one frame is the focus of its cards, travelling from one to the next: a control in a row would break its
+     * journey, the frame going out on it and lighting again from nowhere past it. A wall's foot may hold one, past its
+     * last card (PartFailed's Réessayer): the frame goes out as its card loses focus.
      */
     @Test
     fun aRowHoldsOnlyFramedCards() {
