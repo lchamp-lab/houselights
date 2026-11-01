@@ -27,8 +27,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,9 +51,11 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.InspectorInfo
@@ -61,6 +66,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -114,8 +120,7 @@ fun HeaderControls(content: @Composable () -> Unit) {
  * [busyLabel] and ignores OK. A button with a busy label of its own takes from the start the width of the wider of
  * its words at rest and busy, [reserveFor] included (another busy label it shows in turn), so nothing beside it moves
  * as they change. [detailLit] lights the detail for a state it names (an active filter, the sort chosen); a detail
- * [detailWhole] goes whole where the button has less room than it needs, never cut (a length). Given more room than
- * its words need, they stand in its middle, or at its start ([wordsAtStart]).
+ * [detailWhole] goes whole where the button has less room than it needs, never cut (a length).
  */
 @Composable
 fun HlButton(
@@ -132,7 +137,6 @@ fun HlButton(
     busyLabel: String = text,
     reserveFor: String? = null,
     detailWhole: Boolean = false,
-    wordsAtStart: Boolean = false,
 ) = ButtonPlate(
     text,
     onClick,
@@ -146,7 +150,6 @@ fun HlButton(
     busyLabel,
     reserveFor = reserveFor,
     detailWhole = detailWhole,
-    wordsAtStart = wordsAtStart,
 )
 
 /** The plate of [HlButton]; [caution] sets the label in ember for an irreversible action ([SheetConfirm]). */
@@ -165,13 +168,12 @@ internal fun ButtonPlate(
     caution: Boolean = false,
     reserveFor: String? = null,
     detailWhole: Boolean = false,
-    wordsAtStart: Boolean = false,
 ) {
     val c = Hl.colors
     val busyState = stringResource(R.string.control_busy)
     val height = if (LocalInHeader.current) HlSize.controlCompact else HlSize.control
     val surface = modifier.height(height).semantics { if (busy) stateDescription = busyState }
-    val words = ButtonWords(text, icon, detail?.let { DetailWords(it, detailLit, detailWhole) }, busy, busyLabel, wordsAtStart)
+    val words = ButtonWords(text, icon, detail?.let { DetailWords(it, detailLit, detailWhole) }, busy, busyLabel)
     val reserved = reservedWidth(words, reserveFor)
     if (emphasis == Emphasis.Primary) {
         val light = remember(c) { c.emberLight() }
@@ -217,7 +219,6 @@ private class ButtonWords(
     val detail: DetailWords?,
     val busy: Boolean,
     val busyLabel: String,
-    val atStart: Boolean,
 )
 
 /** A button's detail: its [text], [lit] for a state it names, going [whole] where the button has no room for it. */
@@ -228,7 +229,7 @@ private class DetailWords(val text: String, val lit: Boolean, val whole: Boolean
 private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolean, lit: Boolean, enabled: Boolean) {
     Row(
         Modifier
-            .align(if (words.atStart) Alignment.CenterStart else Alignment.Center)
+            .align(Alignment.Center)
             .keepWidthWhile(words.busy)
             .widthIn(min = reserved)
             .padding(
@@ -470,7 +471,8 @@ fun HlActionRow(
  * [HlActionRow] reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden
  * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. Menu or a long OK
  * opens its options ([onLongClick], which [onLongClickLabel] names to accessibility services), the Menu key saying so
- * on the label's second line; without options, that line is its [hint], quieter.
+ * on the label's second line; without options, that line is its [hint], quieter. Within a [labelRoom], the label keeps
+ * to its edges as it does to the screen's.
  */
 @Composable
 fun HlIconButton(
@@ -483,6 +485,7 @@ fun HlIconButton(
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
     hint: String? = null,
+    labelRoom: LabelRoom? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -512,7 +515,7 @@ fun HlIconButton(
             // Always on a plate: the label may fall over any picture.
             Column(
                 Modifier
-                    .clearAndSetSemantics {}
+                    .clearAndSetSemantics { testTag = TILE_LABEL }
                     .graphicsLayer { alpha = labelAlpha }
                     .labelPlate(c, light)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
@@ -528,7 +531,9 @@ fun HlIconButton(
         },
     ) { measurables, constraints ->
         val button = measurables[0].measure(constraints)
-        val text = measurables[1].measure(Constraints(maxWidth = tileLabelWidth(screenWidth)))
+        val room = labelRoom?.takeIf { it.known }
+        val widest = room?.let { minOf(tileLabelWidth(screenWidth), it.width) } ?: tileLabelWidth(screenWidth)
+        val text = measurables[1].measure(Constraints(maxWidth = widest))
         val gap = HlSpace.xs.roundToPx()
         val edge = HlIconButtonDefaults.labelEdge.roundToPx()
         layout(button.width, button.height) {
@@ -536,12 +541,45 @@ fun HlIconButton(
             val x = coordinates?.let { here ->
                 val screen = here.findRootCoordinates()
                 val left = screen.localPositionOf(here, Offset.Zero).x.roundToInt()
-                labelX(button.width, text.width, left, screen.size.width, edge)
+                // Within what holds it, its edges then the edges, else within the screen's.
+                when (room) {
+                    null -> labelX(button.width, text.width, left, screen.size.width, edge)
+                    else -> labelX(button.width, text.width, left - room.start, room.width, 0)
+                }
             } ?: ((button.width - text.width) / 2)
             text.place(x, button.height + gap)
         }
     }
 }
+
+/**
+ * Where the labels of the tiles in what holds them may lie across the screen ([labelRoom]): from [start] to
+ * [start] + [width] px, as it is placed; unknown until then.
+ */
+@Stable
+class LabelRoom {
+    var start by mutableIntStateOf(0)
+        private set
+    var width by mutableIntStateOf(-1)
+        private set
+
+    /** Whether it was placed. */
+    val known: Boolean get() = width > 0
+
+    internal fun placed(start: Int, width: Int) {
+        this.start = start
+        this.width = width
+    }
+}
+
+/** This element as the [room] its tiles' labels lie within, their edges its own ([HlIconButton]'s `labelRoom`). */
+internal fun Modifier.labelRoom(room: LabelRoom): Modifier = onPlaced { here ->
+    val bounds = here.boundsInRoot()
+    room.placed(bounds.left.roundToInt(), bounds.width.roundToInt())
+}
+
+/** Finds a tile's label in tests: it is read as the tile, never on its own. */
+internal const val TILE_LABEL = "tile-label"
 
 /** A tile's label plate over the picture [light] comes from, and its hairline, read while drawing. */
 internal fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = drawWithCache {

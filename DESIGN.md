@@ -633,20 +633,21 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   - **The panels** (`Volets`, laid out by `VoletPlan`, pure): the closed ones `VoletDefaults.closed` wide (96, a
     portrait's: 30 % of the poster shows) whatever the saga's length, `VoletDefaults.gap` apart; the open one takes what
     they leave, never under `VoletDefaults.open` (428: 541 for three films, 437 for four). From five films the films
-    scroll by whole panels (`VoletPlan.scrollTo`), the open one two closed panels after the saga's spine where it can, a closed
-    panel whole after it, the saga's closed panel pinned at the start, a film scrolled away going under it; a panel past
-    the polyptych's end shows its picture alone, its number and year gone, no text cut by the screen's edge
+    scroll by whole panels (`VoletPlan.scrollTo`), the open one two closed panels after the saga's spine where it can, a
+    closed panel whole after it, the saga's closed panel pinned at the start, a film scrolled away going under it; a
+    panel past the polyptych's end shows its picture alone, its number and year gone, no text cut by the screen's edge
     (`standsWhole`). Their posters are asked for in view, along the way a move takes and four panels past them on either
-    side alone, eight on the side a held arrow runs to, none far from the view on arrival; kept while within eight, a far panel keeping its dark (`PosterWindow`, `VoletPostersTest`). A closed panel is
-    its poster at its natural size, cut by its width, never scaled: its number at the top on its axis, its mark (a
-    card's check, held ring or new dot; the ring of a film missing, the quiet dot of one to come) and its year at its
-    foot, every year shown, the share seen burning at its very foot; no state word. The open panel shows its backdrop
-    over its poster once focus settled (else its poster on its dark), its number at its start, and its words in a hero's
-    band (`VoletWords`): its logo or its title in `headline` on two lines at most, broken at its separator (a dash, a
-    French colon), which goes there, else the separator held mid-line, no line ending or beginning with it
-    (`titleLines`), its facts without genres, its state last and never dropped (« Vu », « Il reste 1 h 14 »,
-    « À suivre », « Absent de votre bibliothèque », « Sortie le 15 décembre 2026 », « Annoncé »), two lines of overview.
-    They wait for their picture, `HOLD` at most, then come in one cut.
+    side alone, eight on the side a held arrow runs to, none far from the view on arrival; kept while within eight, a
+    far panel keeping its dark (`PosterWindow`, `VoletPostersTest`). A closed panel is its poster at its natural size,
+    cut by its width, never scaled: its number at the top on its axis, its mark (a card's check, held ring or new dot;
+    the ring of a film missing, the quiet dot of one to come) and its year at its foot, every year shown, the share seen
+    burning at its very foot; no state word. The open panel shows its backdrop over its poster once focus settled (else
+    its poster on its dark), its number at its start, and its words in a hero's band (`VoletWords`): its logo or its
+    title in `headline` on two lines at most, broken at its separator (a dash, a French colon), which goes there, else
+    the separator held mid-line, no line ending or beginning with it (`titleLines`), its facts without genres, its state
+    last and never dropped (« Vu », « Il reste 1 h 14 », « À suivre », « Absent de votre bibliothèque », « Sortie le 15
+    décembre 2026 », « Annoncé »), two lines of overview. They wait for their picture, `HOLD` at most, then come in one
+    cut.
   - **The saga's panel**, open on arrival: its backdrop, else its first film's, never its poster, which prints its name;
     its name set to its measure (`TitleArt(measured = true)`: the signature on one line, else `display`), its facts on
     one line (the years of its films out, the films held of those out, « 3 vus » once one is watched, their length or,
@@ -658,24 +659,24 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     glow, stepping back further than its siblings; it has no actions, its words over the band of its neighbours' marks
     and years, OK opening its synopsis (`SynopsisSheet`), never a way to get it.
   - **The actions** (`HlActionRow`), under the open panel's words, `HlSpace.l` under its overview, an action row's gap
-    apart, a tile's label room alone over its foot, so a focused tile's label lies on the band of its neighbours' years. The saga's: « À suivre » and the film it
-    plays next (`nextUpIn`), the label in white `group`, the name in secondary `meta`, cut at the line's end; then Lire
-    or Reprendre it, saying its length or its time left, Depuis le début once started, « Marquer la saga comme vue » (it
-    marks the films held), and Modifier, its poster and its backdrop in the title page's own sheet (`EditMenu`, no
-    Identifier), where its source keeps its pictures: a Jellyfin box set has none. A film held's: Lire or Reprendre it,
-    Depuis le début, its check marking it alone (`togglePlayed`), and the info tile opening its page (« Voir la
-    fiche »). Lire fills what the tiles leave, its words at its start (`wordsAtStart`), its detail going whole before a
-    tile gives way (`detailWhole`). What failed to play or to save, or why the saga could not be read again, takes the
-    « À suivre » line's place over them, whichever panel is open, Réessayer after the saga's actions; the player changed
-    (#58), « Faire confiance au nouveau lecteur » takes the open panel's Lire's place. A saga with no action at all has
-    focus on its panel, Back leaving at once. While the panel itself has focus, never with a tile's label, what OK does
-    on it shows in its bottom corner, on the line of its neighbours' years, one quiet line of marks along the
-    polyptych's foot (`OkHint`): the OK key (`OkKey`) a hint's line tall (`HlIconButtonDefaults.hintRoom`), « OK » in
-    the technical voice in a tertiary frame, then in a hint's tertiary `meta` « Voir la fiche » on a film held, « Lire
-    le synopsis » on one the library lacks, « Lire le résumé entier » on the saga's own while its overview is cut
-    (`SagaHintTest`). The Menu key does nothing on the page. At 1.3 in every language, the words and the actions hold, a
-    film's title alone cut in its measure (`SagaWordsTest`). A box set (a source that lists only the films it holds) has
-    a panel for each of them, numbered in the server's order, none grey.
+    apart, a tile's label room alone over its foot, so a focused tile's label lies on the band of its neighbours' years.
+    The saga's: « À suivre » and the film it plays next (`nextUpIn`), the label in white `group`, the name in secondary
+    `meta`, cut at the line's end; then Lire or Reprendre it, saying its length or its time left, Depuis le début once
+    started, « Marquer la saga comme vue » (it marks the films held), and Modifier, its poster and its backdrop in the
+    title page's own sheet (`EditMenu`, no Identifier), where its source keeps its pictures: a Jellyfin box set has
+    none. A film held's: Lire or Reprendre it, Depuis le début, its check marking it alone (`togglePlayed`), and the
+    info tile opening its page (« Voir la fiche »). Lire is as wide as its words, the tiles after it, the row packed at
+    its start, its detail going whole before a tile gives way (`detailWhole`). What failed to play or to save, or why
+    the saga could not be read again, takes the « À suivre » line's place over them, whichever panel is open, Réessayer
+    after the saga's actions; the player changed (#58), « Faire confiance au nouveau lecteur » takes the open panel's
+    Lire's place. A saga with no action at all has focus on its panel, Back leaving at once. While the panel itself has
+    focus, never with a tile's label, what OK does on it shows in its bottom corner, on the line of its neighbours'
+    years, one quiet line of marks along the polyptych's foot (`OkHint`): the OK key (`OkKey`) a hint's line tall
+    (`HlIconButtonDefaults.hintRoom`), « OK » in the technical voice in a tertiary frame, then in a hint's tertiary
+    `meta` « Voir la fiche » on a film held, « Lire le synopsis » on one the library lacks, « Lire le résumé entier » on
+    the saga's own while its overview is cut (`SagaHintTest`). The Menu key does nothing on the page. At 1.3 in every
+    language, the words and the actions hold, a film's title alone cut in its measure (`SagaWordsTest`). A box set (a
+    source that lists only the films it holds) has a panel for each of them, numbered in the server's order, none grey.
   - **Remote** (`SagaPageTest`): the page opens on the saga's Lire, its panel open. Up from any action goes to its
     panel; Down from an open panel enters its actions, on its Lire, the panel staying open with its words, its picture
     and the room, its frame alone gone (principle 7 holds here without exception); Left and Right move along the

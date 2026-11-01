@@ -52,6 +52,7 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
+import app.houselights.ui.design.components.LabelRoom
 import app.houselights.ui.design.components.SagaVoletWords
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.SynopsisSheet
@@ -62,6 +63,7 @@ import app.houselights.ui.design.components.VoletState
 import app.houselights.ui.design.components.VoletWords
 import app.houselights.ui.design.components.Volets
 import app.houselights.ui.design.components.filmCount
+import app.houselights.ui.design.components.labelRoom
 import app.houselights.ui.design.components.wearsNewDot
 import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
@@ -428,13 +430,20 @@ private fun SagaActions(
     val memory = play.memory
     val lead = play.lead.onFocusChanged { onHome(it.isFocused) }
     val last = play.last
-    Column(Modifier.okClears(play.links.onClearActionError)) {
+    // The panel's actions' width, which their tiles' labels keep within.
+    val labels = remember { LabelRoom() }
+    Column(Modifier.okClears(play.links.onClearActionError).labelRoom(labels)) {
         ActionsHead(play.problem, state.actionError, state.error, acts.target?.title)
         OnArtwork {
             HlActionRow(Modifier.focusRequester(actionRow)) {
-                acts.target?.let { PlayActions(it, SAGA_KEYS, ends = acts.shown.last() == SagaAct.Play, play, lead) }
+                acts.target?.let { PlayActions(it, SAGA_KEYS, ends = acts.shown.last() == SagaAct.Play, play, labels, lead) }
                 if (acts.marks) {
-                    SagaWatchedTile(item, { play.links.onMark(item) }, acts.placed(SagaAct.Watched, lead, last).focusKey(WATCHED, memory))
+                    SagaWatchedTile(
+                        item,
+                        { play.links.onMark(item) },
+                        labels,
+                        acts.placed(SagaAct.Watched, lead, last).focusKey(WATCHED, memory),
+                    )
                 }
                 acts.edit?.let { edit ->
                     HlIconButton(
@@ -442,6 +451,7 @@ private fun SagaActions(
                         stringResource(R.string.edit),
                         onClick = edit,
                         modifier = acts.placed(SagaAct.Edit, lead, last).focusKey(EDIT, memory),
+                        labelRoom = labels,
                     )
                 }
                 acts.fixedBy?.let { fixedBy ->
@@ -459,18 +469,19 @@ private fun SagaActions(
 
 /**
  * A film held's actions, under its open panel's words: what failed to play or to save, over them; Lire or Reprendre it
- * with its length or what is left of it, Depuis le début once started, its check marking it alone, and its page; what
- * The player changed, what fixes it in Lire's place.
+ * with its length or what is left of it, Depuis le début once started, its check marking it alone, and its page, their
+ * labels kept within the panel. The player changed, what fixes it in Lire's place.
  */
 @Composable
 private fun FilmActions(film: MediaItem, state: DetailState, play: PanelPlay) {
     val memory = play.memory
-    Column(Modifier.okClears(play.links.onClearActionError)) {
+    val labels = remember { LabelRoom() }
+    Column(Modifier.okClears(play.links.onClearActionError).labelRoom(labels)) {
         ActionsHead(play.problem, state.actionError, nextUpError = null, next = null)
         OnArtwork {
             HlActionRow {
                 val keys = RowKeys(filmKey(film, PLAY_NAME), filmKey(film, RESTART_NAME), filmKey(film, WATCHED_NAME))
-                PlayActions(film, keys, ends = false, play, play.lead)
+                PlayActions(film, keys, ends = false, play, labels, play.lead)
                 if (state.capabilities?.markPlayed == true) {
                     val watched = film.user.played
                     HlIconButton(
@@ -478,6 +489,7 @@ private fun FilmActions(film: MediaItem, state: DetailState, play: PanelPlay) {
                         stringResource(if (watched) R.string.mark_unwatched else R.string.mark_watched),
                         onClick = { play.links.onMark(film) },
                         modifier = Modifier.focusKey(keys.watched, memory),
+                        labelRoom = labels,
                     )
                 }
                 HlIconButton(
@@ -485,6 +497,7 @@ private fun FilmActions(film: MediaItem, state: DetailState, play: PanelPlay) {
                     stringResource(R.string.saga_film_page),
                     onClick = { play.links.onOpenItem(film.id) },
                     modifier = Modifier.focusKey(filmKey(film, PAGE_NAME), memory).then(play.last),
+                    labelRoom = labels,
                 )
             }
         }
@@ -522,12 +535,19 @@ private val SAGA_KEYS = RowKeys(PLAY, RESTART, WATCHED)
 
 /**
  * Lire, or Reprendre once [target] is started, with its length or what is left of it, then Depuis le début: the row's
- * last actions, Right from them leading out, when nothing [ends] after them. Lire fills what the tiles leave, its
- * words at its start, its detail going whole before a tile gives way; [modifier] is the row's first action's. The
- * player changed, what fixes it alone in their place.
+ * last actions, Right from them leading out, when nothing [ends] after them. Lire is as wide as its words, the tiles
+ * after it, its detail going whole before a tile gives way; [modifier] is the row's first action's, its
+ * tiles' labels within [labels]. The player changed, what fixes it alone in their place.
  */
 @Composable
-private fun RowScope.PlayActions(target: MediaItem, keys: RowKeys, ends: Boolean, play: PanelPlay, modifier: Modifier = Modifier) {
+private fun RowScope.PlayActions(
+    target: MediaItem,
+    keys: RowKeys,
+    ends: Boolean,
+    play: PanelPlay,
+    labels: LabelRoom,
+    modifier: Modifier = Modifier,
+) {
     val last = play.last.takeIf { ends }
     val memory = play.memory
     val trust = play.trust
@@ -542,13 +562,12 @@ private fun RowScope.PlayActions(target: MediaItem, keys: RowKeys, ends: Boolean
         onClick = { play.links.onPlay(target, resume) },
         modifier = modifier
             .focusKey(keys.play, memory)
-            .weight(1f)
+            .weight(1f, fill = false)
             .then(last?.takeUnless { resume } ?: Modifier),
         icon = HlIcons.Play,
         detail = playLength(target, resume),
         emphasis = Emphasis.Primary,
         detailWhole = true,
-        wordsAtStart = true,
     )
     if (resume) {
         HlIconButton(
@@ -556,6 +575,7 @@ private fun RowScope.PlayActions(target: MediaItem, keys: RowKeys, ends: Boolean
             stringResource(R.string.from_start),
             onClick = { play.links.onPlay(target, false) },
             modifier = Modifier.focusKey(keys.restart, memory).then(last ?: Modifier),
+            labelRoom = labels,
         )
     }
 }
@@ -566,15 +586,16 @@ private fun playLength(target: MediaItem, resume: Boolean): String? {
     return formatDuration(if (resume) maxOf(length - target.user.positionMs, MINUTE_MS) else length)
 }
 
-/** « Marquer la saga comme vue », or « non vue » once it is: it marks the films held. */
+/** « Marquer la saga comme vue », or « non vue » once it is: it marks the films held; its label within [labels]. */
 @Composable
-private fun SagaWatchedTile(item: MediaItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun SagaWatchedTile(item: MediaItem, onClick: () -> Unit, labels: LabelRoom, modifier: Modifier = Modifier) {
     val watched = item.user.played
     HlIconButton(
         if (watched) HlIcons.CheckFilled else HlIcons.Check,
         stringResource(if (watched) R.string.mark_saga_unwatched else R.string.mark_saga_watched),
         onClick = onClick,
         modifier = modifier,
+        labelRoom = labels,
     )
 }
 

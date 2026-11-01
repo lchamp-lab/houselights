@@ -41,6 +41,7 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.MENU_KEY
 import app.houselights.ui.design.components.VoletPlan
@@ -612,16 +613,20 @@ class SagaPageTest {
         assertTrue(left)
     }
 
-    /** Lire fills the saga's row up to its tiles, the last at the panel's inset from its side. */
+    /** Lire is as wide as its words, the saga's tiles right after it a row's gap apart, the row packed at its start. */
     @Test
-    fun lireFillsTheRowUpToItsTiles() {
+    fun lireIsAsWideAsItsWordsTheRowPackedAtItsStart() {
         page()
         val panel = saga.getUnclippedBoundsInRoot()
         val reprendre = resume.getUnclippedBoundsInRoot()
         val restart = tile(R.string.from_start).getUnclippedBoundsInRoot()
+        val watched = tile(R.string.mark_saga_watched).getUnclippedBoundsInRoot()
         val edit = tile(R.string.edit).getUnclippedBoundsInRoot()
-        assertEquals("up to Depuis le début", (restart.left - HlSpace.s).value, reprendre.right.value, HALF)
-        assertEquals("Modifier at the inset", (panel.right - HlInset.card).value, edit.right.value, HALF)
+        assertEquals("Lire at the words' start", (panel.left + HlInset.card).value, reprendre.left.value, HALF)
+        assertEquals("Depuis le début right after it", (reprendre.right + HlSpace.s).value, restart.left.value, HALF)
+        assertEquals("the check after it", (restart.right + HlSpace.s).value, watched.left.value, HALF)
+        assertEquals("Modifier after it", (watched.right + HlSpace.s).value, edit.left.value, HALF)
+        assertTrue("room left at the row's end: ${edit.right}", edit.right < panel.right - HlInset.card - HlSize.tile)
     }
 
     /** Back from the player once Depuis le début started a film, focus is on that film's Lire, as on the saga's and a film's page. */

@@ -119,7 +119,7 @@ private fun Polyptych(films: List<SampleFilm>) {
     }
 }
 
-/** An open panel's actions: Lire filling what the tiles leave, the check, then the saga's Modifier or a film's page. */
+/** An open panel's actions: Lire as wide as its words, the check, then the saga's Modifier or a film's page. */
 @Composable
 private fun SampleActions(saga: Boolean) {
     OnArtwork {
@@ -127,12 +127,11 @@ private fun SampleActions(saga: Boolean) {
             HlButton(
                 stringResource(R.string.play),
                 onClick = {},
-                Modifier.weight(1f),
+                Modifier.weight(1f, fill = false),
                 icon = HlIcons.Play,
                 detail = "2 h 16",
                 emphasis = Emphasis.Primary,
                 detailWhole = true,
-                wordsAtStart = true,
             )
             HlIconButton(HlIcons.Check, stringResource(R.string.mark_watched), onClick = {})
             if (saga) {

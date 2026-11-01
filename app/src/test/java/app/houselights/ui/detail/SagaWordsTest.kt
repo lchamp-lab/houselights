@@ -13,11 +13,13 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -37,10 +39,13 @@ import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HouselightsTheme
+import app.houselights.ui.design.components.TILE_LABEL
 import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.cutTexts
+import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.util.formatDuration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -167,6 +172,31 @@ class SagaWordsTest {
         says(watched, "1996 – 2023", res.getQuantityString(R.plurals.film_count, 2, 2), res.getQuantityString(R.plurals.saga_watched, 1, 1))
     }
 
+    /**
+     * Every tile's label of the saga's actions and of a film's (Reprendre, Depuis le début, its check and its page) stays
+     * inside its panel in every language at 1.3, the last tile's sliding left under it rather than past the edge.
+     */
+    @Test
+    fun theTilesLabelsStayInsideTheirPanelInEveryLanguage() {
+        val page = SagaPage(compose, source(), work)
+        page.step = LARGEST
+        page.language = InterfaceLanguage.LANGUAGES.first()
+        page.open(mission.id)
+        val wrong = InterfaceLanguage.LANGUAGES.flatMap { tag ->
+            val words = Words(tag)
+            Locale.setDefault(words.locale)
+            compose.runOnIdle { page.language = tag }
+            compose.waitForIdle()
+            val saga = words.labelsOutside(words.sagaPanel, "the saga's actions")
+            compose.press(Key.DirectionUp)
+            compose.press(Key.DirectionRight, times = 3)
+            val film = words.labelsOutside(words.reckoningPanel, "a film's actions")
+            compose.pressBack()
+            saga + film
+        }
+        assertTrue("At $LARGEST:\n" + wrong.joinToString("\n"), wrong.isEmpty())
+    }
+
     /** What the page says in [tag], and where it says it wrong. */
     private inner class Words(val tag: String) {
         val locale: Locale = Locale.forLanguageTag(tag)
@@ -176,6 +206,25 @@ class SagaWordsTest {
         }
         private val wrong = mutableListOf<String>()
         private val timeLeft = res.getString(R.string.time_left, formatDuration(reckoning.runtimeMs!! - reckoning.user.positionMs))
+
+        /** The saga's panel, and the film half seen's, as read in this language. */
+        val sagaPanel: String = res.getString(R.string.saga_volet_saga, mission.title)
+        val reckoningPanel: String = res.getString(R.string.saga_card_name, reckoning.title, 3) + ", 2023"
+
+        /** The tiles' labels now laid out that pass the edges of the panel read as [panel]. */
+        fun labelsOutside(panel: String, where: String): List<String> {
+            val bounds = compose.onNode(hasContentDescription(panel)).getUnclippedBoundsInRoot()
+            val labels = compose.onAllNodes(hasTestTag(TILE_LABEL), useUnmergedTree = true).fetchSemanticsNodes()
+                .filter { it.layoutInfo.isPlaced }
+            if (labels.isEmpty()) return listOf("$tag, $where: no tile")
+            val density = compose.density.density
+            return labels.mapNotNull { node ->
+                val left = node.boundsInRoot.left / density
+                val right = node.boundsInRoot.right / density
+                "$tag, $where: a label from $left to $right, past ${bounds.left}..${bounds.right}"
+                    .takeIf { left < bounds.left.value - HALF || right > bounds.right.value + HALF }
+            }
+        }
 
         /** The saga's panel and each film's, open. */
         fun panels(): List<String> {
