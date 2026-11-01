@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import kotlin.math.abs
+import kotlin.math.max
 
 /** A search [MatchPlan] sends: a title, with a year or without, in the client's language or in English. */
 internal data class Search(val title: String, val year: Int?, val english: Boolean = false)
@@ -14,7 +15,7 @@ internal class Matched<out T>(val found: T?, val offered: List<Scored> = emptyLi
  * as part of the title; the folder's title and year; the NFO's original title; in English, the client speaking
  * another language; for a name holding " - ", the text after it, then before it ("Metallica - Live in Paris"); the
  * year one before and one after, only when no candidate alike is near the year; "&" and "and" swapped. When TMDB's
- * first answer to a search with a year is of that year yet not alike, its alternative titles are asked, once.
+ * first answer is not named as the name is ([worthAsking]), its alternative titles are asked, once.
  */
 internal object MatchPlan {
     /** Searches a title takes at most; a clean name takes one. */
@@ -47,9 +48,9 @@ internal object MatchPlan {
             }
             verdict = MatchScore.verdict(wanted, pool.values)
             if (verdict is Verdict.Match) return verdict
-            // TMDB's first answer of the year asked, of other words: its alternative titles may be the name's.
-            val top = results.firstOrNull()?.let { pool[it.id] }?.takeIf { !asked && next.year != null && it.year == next.year }
-            if (top != null && !alike(wanted, top)) {
+            // TMDB's first answer, named otherwise: its alternative titles may be the name's.
+            val top = results.firstOrNull()?.let { pool[it.id] }?.takeIf { !asked && worthAsking(wanted, next, results, it) }
+            if (top != null) {
                 asked = true
                 pool[top.id] = top.copy(titles = (top.titles + alternatives(top.id)).distinct())
                 verdict = MatchScore.verdict(wanted, pool.values)
@@ -57,6 +58,18 @@ internal object MatchPlan {
             }
         }
         return verdict
+    }
+
+    /**
+     * Whether [top], TMDB's first answer to [search] ([results]), is asked its alternative titles: when none of its titles
+     * names the name ([MatchScore.named]), and it is of the year asked; or, the name giving no year at all, when it is
+     * the only answer or has 20 times the votes of each other ("Star Wars Episode IV A New Hope", TMDB's "Star Wars").
+     */
+    private fun worthAsking(wanted: Wanted, search: Search, results: List<TmdbSearchResult>, top: Candidate): Boolean = when {
+        MatchScore.named(wanted, top) -> false
+        search.year != null -> top.year == search.year
+        else -> wanted.readings.all { it.year == null } &&
+            results.drop(1).all { top.votes >= MatchScore.DOMINANCE * max(1, it.voteCount) }
     }
 
     /** The first of [planned]'s searches not [sent] yet; the year moved by one only while nothing alike is near it. */

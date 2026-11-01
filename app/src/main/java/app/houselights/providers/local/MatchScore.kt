@@ -151,7 +151,7 @@ internal object MatchScore {
     const val OFFERED = 3
 
     /** Without a year to tell them apart, a title of the same likeness with this many times the votes is ahead. */
-    private const val DOMINANCE = 20
+    const val DOMINANCE = 20
 
     private const val SIM_WEIGHT = 0.5
     private const val YEAR_WEIGHT = 0.3
@@ -202,8 +202,18 @@ internal object MatchScore {
     /** Words naming a part beside its number ("Part 2", "2e partie", "Volume 1"), dropped there as Radarr drops them. */
     private val PART_WORDS = setOf("part", "partie", "chapter", "chapitre", "volume", "vol", "episode")
 
-    /** A title's words ([forms]), and which were written as acronyms ("SVU" in "Law and Order SVU"). */
-    private class Words(val words: List<String>, val acronyms: Set<Int>) {
+    /**
+     * Words naming a saga's episode before its number, folded ("Épisode"; "Episodio" in Spanish, Italian, Portuguese):
+     * followed by the episode's own title, that number is its place in the saga, which a title without a number does not
+     * say ("Star Wars Episode VIII The Last Jedi", "Star Wars: The Last Jedi"). Never "Folge", a show's episode.
+     */
+    private val EPISODE_WORDS = setOf("episode", "episodio")
+
+    /**
+     * A title's words ([forms]), and which were written as acronyms ("SVU" in "Law and Order SVU"); [unplaced], its words
+     * without a saga's episode and its number ([EPISODE_WORDS]), null without one.
+     */
+    private class Words(val words: List<String>, val acronyms: Set<Int>, val unplaced: Words? = null) {
         val key = words.joinToString(" ")
         val numbers = words.filter(::isNumber).sorted()
     }
@@ -226,7 +236,8 @@ internal object MatchScore {
      * "marvels"): "&" read "and"; folded ([SortKeys.fold]); single letters joined ("S.H.I.E.L.D." is "shield"); one
      * leading article dropped (not "die", "el", "il" nor "de": "Die Hard" is never "Hard"); numbers read as digits,
      * roman ("Rocky II"), in words to twenty ("Ocean's Eleven") or ordinals ("2e partie"); a part's word beside its
-     * number dropped ("Part 2" is "2"). Three to five capitals in a title in mixed case are an acronym.
+     * number dropped ("Part 2" is "2"). Three to five capitals in a title in mixed case are an acronym. A saga's episode
+     * and its number followed by other words are read apart too ([Words.unplaced]).
      */
     private fun readForms(title: String): List<Words> {
         val text = title.replace("&", " and ")
@@ -240,8 +251,15 @@ internal object MatchScore {
         val read = raw.map { word -> number(SortKeys.fold(word)) }
         val acronyms = raw.indices.filterTo(HashSet()) { i -> cased && acronym(raw[i]) && !isNumber(read[i]) }
         val kept = read.indices.filterNot { i -> read[i] in PART_WORDS && (numberAt(read, i - 1) || numberAt(read, i + 1)) }
-            .let { if (it.size > 1 && read[it.first()] in ARTICLES) it.drop(1) else it }
-        return Words(kept.map { read[it] }, kept.indices.filterTo(HashSet()) { kept[it] in acronyms })
+        val episode = read.indices.firstOrNull { i -> read[i] in EPISODE_WORDS && numberAt(read, i + 1) && i + 2 < read.size }
+        val unplaced = episode?.let { at -> wordsAt(read, acronyms, kept.filter { it != at && it != at + 1 }) }
+        return wordsAt(read, acronyms, kept, unplaced?.takeIf { it.words.isNotEmpty() })
+    }
+
+    /** [read]'s words at [kept], one leading article dropped. */
+    private fun wordsAt(read: List<String>, acronyms: Set<Int>, kept: List<Int>, unplaced: Words? = null): Words {
+        val at = if (kept.size > 1 && read[kept.first()] in ARTICLES) kept.drop(1) else kept
+        return Words(at.map { read[it] }, at.indices.filterTo(HashSet()) { at[it] in acronyms }, unplaced)
     }
 
     private fun acronym(word: String) = word.length in ACRONYM_LETTERS && word.all(Char::isUpperCase)
@@ -292,7 +310,8 @@ internal object MatchScore {
      * words, in any order, an acronym standing for the words it spells ("SVU", "Special Victims Unit"); 0.9 when one is
      * the other's part before or after its first colon or dash, both ways ("Rogue One", "Rogue One : A Star Wars
      * Story"); else their words' share (Dice) or their keys' edit distance, whichever is closer. Titles whose numbers
-     * differ are at most 0.55 alike, so a part is never taken for the next one ("Saw IV", "Saw V").
+     * differ are at most 0.55 alike, so a part is never taken for the next one ("Saw IV", "Saw V"), unless one names a
+     * saga's episode the other's title has no number for ([EPISODE_WORDS]): they are then compared without it, below 1.
      */
     fun similarity(wanted: String, candidate: String): Double {
         val whole = forms(wanted).maxOf { a -> forms(candidate).maxOf { b -> alike(a, b) } }
@@ -304,8 +323,14 @@ internal object MatchScore {
         if (a.words.isEmpty() || b.words.isEmpty()) return 0.0
         val same = a.words.sorted() == b.words.sorted() || spelled(a, b) || spelled(b, a)
         val sim = if (same) 1.0 else min(ALMOST, max(dice(a.words, b.words), edits(a.key, b.key)))
-        return if (a.numbers == b.numbers) sim else min(sim, OTHER_NUMBERS)
+        if (a.numbers == b.numbers) return sim
+        val placed = unplaced(a, b) ?: unplaced(b, a)
+        return max(min(sim, OTHER_NUMBERS), placed ?: 0.0)
     }
+
+    /** [a] without its saga's episode against [b], a title without a number; null when either is not so. */
+    private fun unplaced(a: Words, b: Words): Double? =
+        a.unplaced?.takeIf { b.numbers.isEmpty() }?.let { min(ALMOST, alike(it, b)) }
 
     private fun sameWords(a: String, b: String): Boolean =
         forms(a).any { x -> forms(b).any { y -> x.words.isNotEmpty() && x.words.sorted() == y.words.sorted() } }
@@ -416,6 +441,11 @@ internal object MatchScore {
     }
 
     /** Whether one of [c]'s titles is alike enough to one of [wanted]'s to be matched ([verdict]'s floor). */
-    fun alikeEnough(wanted: Wanted, c: Candidate): Boolean =
-        (wanted.readings.map { it.title } + wanted.alsoTitles).any { name -> c.titles.any { similarity(name, it) >= FLOOR } }
+    fun alikeEnough(wanted: Wanted, c: Candidate): Boolean = likeness(wanted, c) >= FLOOR
+
+    /** Whether one of [c]'s titles names [wanted]: its words, or its part before or after a colon ([similarity] 0.9). */
+    fun named(wanted: Wanted, c: Candidate): Boolean = likeness(wanted, c) >= SUBTITLE
+
+    private fun likeness(wanted: Wanted, c: Candidate): Double =
+        (wanted.readings.map { it.title } + wanted.alsoTitles).maxOf { name -> c.titles.maxOfOrNull { similarity(name, it) } ?: 0.0 }
 }
