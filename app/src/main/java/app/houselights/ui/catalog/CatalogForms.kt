@@ -123,7 +123,7 @@ private fun ColumnScope.FormSettings() {
                         stringResource(R.string.clear_image_cache),
                         description = stringResource(R.string.clear_cache_desc),
                         value = "151,5 Mo",
-                        valueStyle = Hl.type.jaquette,
+                        valueStyle = Hl.type.spec,
                         onClick = {},
                     )
                     HlSettingRow(stringResource(R.string.section_storage), value = "92,4 Mo")
@@ -307,7 +307,7 @@ private fun ColumnScope.FormFoldedFields() {
                         stringResource(R.string.nfs_identity_title),
                         description = stringResource(R.string.nfs_identity_desc),
                         value = stringResource(R.string.nfs_identity, uid, gid),
-                        valueStyle = Hl.type.jaquette,
+                        valueStyle = Hl.type.spec,
                         onClick = {},
                         valueBreaks = true,
                     )
@@ -346,7 +346,7 @@ private fun ColumnScope.FormFoldedFields() {
                     stringResource(R.string.nfs_identity_title),
                     description = stringResource(R.string.nfs_identity_desc),
                     value = stringResource(R.string.nfs_identity, LONG_ID, LONG_ID),
-                    valueStyle = Hl.type.jaquette,
+                    valueStyle = Hl.type.spec,
                     onClick = {},
                     valueBreaks = true,
                 )

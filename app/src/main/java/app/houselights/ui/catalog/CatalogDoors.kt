@@ -141,7 +141,7 @@ private fun WatchDoors() {
             HlIcons.Next,
             {},
             Modifier.size(doorWidth(2), HomeGridDefaults.watchRow),
-            note = DoorNote.Mark("S1 · É4"),
+            note = DoorNote.Mark("S1 É4"),
             progress = DoorProgress.Episodes(listOf(true, true, true, false, false, false, false, false, false, false)),
         ) { DoorStill(episode, span = 2) }
         HomeDoor(
