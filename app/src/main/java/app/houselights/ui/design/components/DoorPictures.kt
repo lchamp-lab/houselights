@@ -57,7 +57,7 @@ fun DoorStill(item: MediaItem, span: Int, modifier: Modifier = Modifier) {
             Modifier.fillMaxSize(),
             size = IntSize(width, width * WIDE_H / WIDE_W),
         ) { FallbackArtwork(item.headTitle, null) }
-        Box(Modifier.matchParentSize().veil(Brush.verticalGradient(*HlScrim.STILL_FOOT.colorStops(c.background))))
+        Box(Modifier.matchParentSize().veil(Brush.verticalGradient(*HlScrim.STILL_FOOT.colorStops(c.ambientDeep))))
         TitleArt(
             title = item.headTitle,
             logo = item.logo,

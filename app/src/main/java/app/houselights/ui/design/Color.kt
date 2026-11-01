@@ -105,6 +105,14 @@ val HlColors.edge: Color get() = content.copy(alpha = HlAlpha.EDGE)
 /** A plate over a picture: its own dark at [alpha], set off by [edge]. */
 fun HlColors.plate(deep: Color = ambientDeep, alpha: Float = HlAlpha.PLATE): Color = deep.copy(alpha = alpha)
 
+/**
+ * The plate of a mark on a picture (a check, a count, a key, the new dot's ring): the picture's own dark, as a
+ * control's plate takes it, at a plate's ceiling, since a mark sits on any part of its picture unmeasured: in the
+ * lightest dark over white, the OK key's letters keep 6.2:1 and a progress line's raspberry end 4.3:1 beside it (at
+ * `VEIL` they would fall to 4.1 and 2.8). Read while drawing.
+ */
+fun HlColors.markPlate(light: AmbientLight): Color = plate(light.deep(), HlAlpha.PLATE_MAX)
+
 /** A plate over the picture [light] comes from, read while drawing: as opaque as its quietest text needs there. */
 fun HlColors.plate(light: AmbientLight): Color = plate(light.deep(), light.plateAlpha())
 
@@ -194,7 +202,7 @@ object HlAlpha {
 
     /** The room beside a side sheet, which stays readable. */
     const val VEIL_SIDE = 0.6f
-    /** Card marks and their progress track on artwork: at 80 % a progress line's raspberry end keeps 3.5:1 on white. */
+    /** A progress line's track on artwork ([groundPlate]): at 80 % its raspberry end keeps 3.5:1 on white. */
     const val VEIL = 0.8f
     /**
      * A [plate] in the picture's own dark, raised up to [PLATE_MAX] over a light picture so its quietest text

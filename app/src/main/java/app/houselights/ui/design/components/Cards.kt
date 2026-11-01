@@ -108,6 +108,7 @@ import app.houselights.ui.design.groundPlate
 import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.groundWell
 import app.houselights.ui.design.keepChildFocus
+import app.houselights.ui.design.markPlate
 import app.houselights.ui.design.rememberGroupMember
 import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.scrollsAsBlock
@@ -864,8 +865,8 @@ internal fun HeldMark(modifier: Modifier = Modifier) {
 }
 
 /**
- * The marks' dark plate over a picture, on their corners ([HlShapes.mark]), [content] centred: as large as [modifier]
- * makes it, else as its content (a count). It recedes with the picture.
+ * The marks' dark plate over a picture ([markPlate]), on their corners ([HlShapes.mark]), [content] centred: as large
+ * as [modifier] makes it, else as its content (a count). It recedes with the picture.
  */
 @Composable
 internal fun MarkPlate(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
@@ -873,11 +874,19 @@ internal fun MarkPlate(modifier: Modifier = Modifier, content: @Composable BoxSc
     Box(
         modifier
             .clip(HlShapes.mark)
-            .background(c.background.copy(alpha = HlAlpha.VEIL))
+            .markPlate()
             .receding(LocalArtworkRecede.current, c.background),
         contentAlignment = Alignment.Center,
         content = content,
     )
+}
+
+/** A mark's plate behind what it modifies, in the picture's dark ([HlColors.markPlate]), read while drawing. */
+@Composable
+internal fun Modifier.markPlate(): Modifier {
+    val c = Hl.colors
+    val light = LocalAmbient.current
+    return drawBehind { drawRect(c.markPlate(light)) }
 }
 
 /** Where a mark sits on its picture: its top right corner, [HlSpace.xs] in. */
@@ -893,12 +902,12 @@ fun MediaItem.wearsNewDot(): Boolean = !held && (user.unplayedCount ?: 0) == 0 &
 @Composable
 internal fun NewDot(modifier: Modifier = Modifier) {
     val c = Hl.colors
-    val ring = c.background.copy(alpha = HlAlpha.VEIL)
+    val light = LocalAmbient.current
     val recede = LocalArtworkRecede.current
     // A status dot is the one round thing; its ring is drawn around it, outside its size.
     Spacer(
         modifier.size(HlSize.newDot).drawBehind {
-            drawCircle(ring, radius = size.minDimension / 2 + HlStroke.ring.toPx())
+            drawCircle(c.markPlate(light), radius = size.minDimension / 2 + HlStroke.ring.toPx())
             drawCircle(c.ember, colorFilter = recedeFilterAt(recede()))
         },
     )
