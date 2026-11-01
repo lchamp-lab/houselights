@@ -98,7 +98,7 @@ class LocalEditor(
     /** The picture of [kind] the title's NFO names, if any. */
     private suspend fun nfoUrl(e: ItemEntity, kind: ArtworkKind): String? {
         // Up to 1 MB of XML, so parse off the main thread.
-        val nfo = e.nfo?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
+        val nfo = dao.nfoText(e.id)?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
         return when (kind) {
             ArtworkKind.POSTER -> nfo?.posterUrl
             ArtworkKind.BACKDROP -> nfo?.fanartUrl
@@ -342,7 +342,7 @@ class LocalEditor(
             g.kind()?.let { EpisodeOrderOption(g.orderId, it, Typeset.text(g.name.ifBlank { null }), g.episodeCount) }
         }
         // Up to 1 MB of XML, so parse off the main thread.
-        val nfo = e.nfo?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
+        val nfo = dao.nfoText(e.id)?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
         val named = NfoOrders.groupOf(nfo, groups)?.let { g -> options.firstOrNull { it.id == g.orderId } }
         val chosen = e.userEpisodeOrder?.takeIf { c -> options.any { it.id == c } }
         return EpisodeOrderChoices(options, chosen, automatic = named ?: aired, fromNfo = named != null)

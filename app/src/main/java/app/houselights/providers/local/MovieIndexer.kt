@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import app.houselights.core.Editions
 import app.houselights.core.NfoInfo
+import app.houselights.core.NfoParser
 import app.houselights.core.yearOf
 
 /** Indexes films: file, NFO and artwork, TMDB match and collection. */
@@ -48,9 +49,10 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         // Its TMDB id before this read: one it gains gives it back what was kept under it ([giveBack]).
         val was = row.userTmdbId ?: row.tmdbId
 
-        val kept = files.nfo(source, local.nfo, row)
+        val stored = existing?.let { dao.nfoText(it.id) }
+        val kept = files.nfo(source, local.nfo, row, stored)
         val nfo = kept.info
-        val asked = asked(pass, row, existing, nfo, local)
+        val asked = asked(pass, row, stored?.let(NfoParser::parse), nfo, local)
         val known = row.tmdbId ?: if (asked.tmdb) lent(row) else null
         val query = Query(row.userTmdbId, names, nfo, named, known, tried = row.hintKey, searches = !row.userNoMatch)
         // TMDB first, its first request collected as the header is read ([Rounds.Aside]); both are then saved at once.
@@ -67,7 +69,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val item = namedAsAFilm(cleared(probed, parsed, fetched, asked), file, parsed, fetched)
         val art = files.copyArt(source, local)
         val read = SidecarKey.of(files.sidecarsRead(local, kept, art))
-        saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = read), nfo, fetched, art, now, was)
+        saveMovie(item.copy(nfoPath = kept.path, sidecarKey = read), nfo, fetched, art, now, was, readNfo = kept)
     }
 
     /**
@@ -125,10 +127,11 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val write: Boolean,
     )
 
-    private fun asked(pass: ScanPass, item: ItemEntity, existing: ItemEntity?, nfo: NfoInfo?, local: VideoSidecars): Asked {
+    /** [known] is the NFO stored before this read. */
+    private fun asked(pass: ScanPass, item: ItemEntity, known: NfoInfo?, nfo: NfoInfo?, local: VideoSidecars): Asked {
         val open = pass.tmdb.open
         // A re-read NFO triggers a TMDB request only when it names another title or set.
-        val newIds = nfo != null && !sameIds(existing?.nfoInfo(), nfo)
+        val newIds = nfo != null && !sameIds(known, nfo)
         val removed = sidecarsRemoved(item, local)
         // Its name gives another id than it was found by ([NameIds.dueFor]).
         val hinted = item.id in pass.hinted
@@ -181,7 +184,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     suspend fun identify(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient): suspend () -> Unit {
         val path = item.namedPath() ?: return {}
         val parsed = LibraryScanner.parseMovie(path)
-        val nfo = item.nfoInfo()
+        val nfo = dao.nfoInfo(item.id)
         val query = Query(null, namesOf(item), nfo, path, known = null)
         val fetched = fetch(TmdbPass(tmdb, strict = true), tmdbId, query, refresh = false) { client ->
             if (tmdbId != null) Looked(client.movie(tmdbId)) else lookupMovie(client, query, FilmCache())
@@ -207,7 +210,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     suspend fun recheck(item: ItemEntity, tmdb: TmdbPass, films: FilmCache): (suspend () -> Boolean)? {
         val path = item.namedPath() ?: return null
         val parsed = LibraryScanner.parseMovie(path)
-        val nfo = item.nfoInfo()
+        val nfo = dao.nfoInfo(item.id)
         val query = Query(null, namesOf(item), nfo, path, known = lent(item))
         val fetched = fetch(tmdb, null, query, refresh = false) { client -> lookupMovie(client, query, films) }
         val lookup = fetched.lookup as? TmdbAnswer.Given ?: return null
@@ -235,7 +238,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         }
         for ((id, _) in renamed) {
             val film = dao.item(id)?.takeIf { it.kind == ItemKind.MOVIE } ?: continue
-            val edition = editionOf(film, film.nfoInfo())
+            val edition = editionOf(film, dao.nfoInfo(film.id))
             if (edition != film.edition) dao.saveScanned(film.copy(edition = edition))
         }
     }
@@ -382,9 +385,9 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
      * its credits would never be read again for them; nor one named since [was], its TMDB id then, without what was kept;
      * nor a saga it joins from one known by its name without the choice made there ([SagaChoiceCarry]); nor the film it
      * leaves or joins without what was chosen on it ([leaveFilm], [CopyHeirDao.joinTitle]). [identified]: the user asked
-     * for this match ([identify]).
+     * for this match ([identify]). [readNfo]: the NFO this pass read, kept with the row; null leaves the stored one.
      */
-    @Suppress("LongParameterList") // One per source of details, the TMDB id the film had, and who asked.
+    @Suppress("LongParameterList") // One per source of details, the TMDB id the film had, who asked, and the NFO read.
     private suspend fun saveMovie(
         base: ItemEntity,
         nfoInfo: NfoInfo?,
@@ -393,6 +396,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         now: Long,
         was: Int?,
         identified: Boolean = false,
+        readNfo: KeptNfo? = null,
     ) = dao.inTransaction {
         val movie = fetched.movie
         val tmdb = fetched.client
@@ -414,6 +418,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         leaveFilm(item.id, item.tmdbId, identified)
         dao.joinTitle(item.id, item.tmdbId)
         dao.saveScanned(item)
+        dao.keepNfo(item.id, readNfo)
         // Its saga known by its name until now, TMDB's takes the choice made under the name, as the film its kept state.
         sagaChoices.moved(left = base.collectionId, joined = collectionId)
         dao.offer(item, fetched.lookup)

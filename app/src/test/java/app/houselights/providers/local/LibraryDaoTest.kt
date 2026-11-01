@@ -308,6 +308,44 @@ class LibraryDaoTest {
         else -> error("No kept value for ${column.name} (${column.type}): give it one, or name it in SCAN_OWNED")
     }
 
+    /**
+     * A title's NFO text goes with its row whichever way the row goes: its file gone ([LibraryDao.settleMissing]), held and
+     * removed ([LibraryDao.removeHeld]), a season and a show left empty ([LibraryDao.deleteEmptyShows]), its folder
+     * removed ([LibraryDao.removeSource]); the cleanup's sweep takes one a row left behind.
+     */
+    @Test
+    fun aTitlesNfoGoesWithItsRowWhicheverWayItGoes() = runTest {
+        suspend fun withNfo(item: ItemEntity) = dao.insertWithNfo(item, "<nfo>${item.title}</nfo>")
+        val films = dao.insertSource(nfsFolder("Films"))
+        val others = dao.insertSource(nfsFolder("Autres"))
+        val gone = withNfo(row(ItemKind.MOVIE, "Parti").copy(sourceId = films))
+        val held = withNfo(row(ItemKind.MOVIE, "Absent").copy(sourceId = films))
+        val kept = withNfo(row(ItemKind.MOVIE, "Là").copy(sourceId = films))
+        val elsewhere = withNfo(row(ItemKind.MOVIE, "Ailleurs").copy(sourceId = others))
+        val show = withNfo(row(ItemKind.SERIES, "Firefly"))
+        val season = withNfo(row(ItemKind.SEASON, "Saison 1", parentId = show, seriesId = show))
+        val episode = withNfo(row(ItemKind.EPISODE, "Serenity", parentId = season, seriesId = show))
+        fun nfos() = db.openHelper.readableDatabase.query("SELECT itemId FROM item_nfos ORDER BY itemId").use { c ->
+            buildSet { while (c.moveToNext()) add(c.getLong(0)) }
+        }
+        assertEquals(setOf(gone, held, kept, elsewhere, show, season, episode), nfos())
+
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), removed = listOf(gone), parts = emptyList(), now = 5)
+        assertEquals("its file gone", setOf(held, kept, elsewhere, show, season, episode), nfos())
+        dao.setMissingSince(listOf(held), 5)
+        dao.removeHeld(listOf(held))
+        assertEquals("held, then removed", setOf(kept, elsewhere, show, season, episode), nfos())
+        dao.deleteItems(listOf(episode))
+        dao.deleteEmptyShows()
+        assertEquals("its season and show left empty", setOf(kept, elsewhere), nfos())
+        dao.removeSource(others)
+        assertEquals("its folder removed", setOf(kept), nfos())
+
+        db.openHelper.writableDatabase.execSQL("DELETE FROM items WHERE id = $kept")
+        assertEquals(1, dao.deleteOrphanNfos())
+        assertEquals(emptySet<Long>(), nfos())
+    }
+
     /** A show left as it is, its episodes taken over by another show row (two season packs merging), leaves that one so. */
     @Test
     fun aShowLeftAsItIsHandsItOver() = runTest {
@@ -533,7 +571,7 @@ class LibraryDaoTest {
             "overview", "tagline", "year", "endYear", "continuing", "runtimeMin", "certification", "rating", "genres", "directors",
             "posterPath", "backdropPath", "logoPath", "stillPath", "seasonNumber", "episodeNumber", "lastEpisodeNumber",
             "absoluteNumber", "tmdbSeason", "tmdbEpisode", "tmdbLastEpisode", "filePath", "parts", "fileSize", "missingSince",
-            "badges", "mediaInfo", "probeVersion", "fileDurationMs", "nfoPath", "nfo", "sidecarKey", "collectionId", "matchedAt",
+            "badges", "mediaInfo", "probeVersion", "fileDurationMs", "nfoPath", "sidecarKey", "collectionId", "matchedAt",
             "edition", "votes", "matchState", "hintKey",
         )
 

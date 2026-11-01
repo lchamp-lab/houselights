@@ -51,7 +51,7 @@ internal class Backfill(
         }
         if (answer !is TmdbAnswer.Given) return false
         val found = answer.value
-        val raw = title.nfoInfo()
+        val raw = dao.nfoInfo(title.id)
         // Ignore the NFO when it describes another title than the one the user matched.
         val nfo = raw?.takeUnless { MetadataMerge.describesOther(it, title.userTmdbId, found?.imdbId, found?.tvdbId) }
         val votes = if (nfo?.rating != null) nfo.votes else found?.votes ?: title.votes

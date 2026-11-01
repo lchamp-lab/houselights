@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import android.os.SystemClock
 import android.util.Log
 import app.houselights.core.FailureKind
-import app.houselights.core.NfoParser
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.RepeatedFailures
 import app.houselights.core.TmdbUnreachableException
@@ -319,6 +318,7 @@ class LibraryScanner(
             dao.deleteOrphanSearchWords()
             dao.deleteOrphanTrackChoices()
             dao.deleteOrphanSuggestions()
+            dao.deleteOrphanNfos()
             dao.deleteOrphanEpisodeOrders()
             dao.deleteOrphanIgnored()
         }
@@ -924,7 +924,7 @@ class LibraryScanner(
 
     /** Re-probes headers only ([Work.PROBE]); the stored NFO fills gaps, and neither sidecars nor TMDB are read. */
     private suspend fun reprobe(source: SourceEntity, file: RemoteFile, existing: ItemEntity) {
-        val nfo = existing.nfo?.let(NfoParser::parse)
+        val nfo = dao.nfoInfo(existing.id)
         dao.saveScanned(files.mediaFields(source, file, existing).withNfoStreams(nfo))
     }
 

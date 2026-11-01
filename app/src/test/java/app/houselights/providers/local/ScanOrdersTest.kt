@@ -189,8 +189,13 @@ class ScanOrdersTest {
 
         assertEquals(listOf("Firefly 1", "Firefly 2", "Firefly 3"), titles())
         assertEquals(listOf(1 to 11, 1 to 1, 1 to 2), traktNumbers())
-        assertEquals("never one by one", 0, ran.count { (sql, _) -> sql.startsWith("SELECT sourceId, nfoPath, nfo FROM items WHERE id") })
-        assertEquals("all at once", 1, ran.count { (sql, _) -> sql.startsWith("SELECT id, nfo FROM items WHERE id IN") })
+        val show = show().id
+        val oneByOne = ran.filter { (sql, args) ->
+            sql.startsWith("SELECT i.sourceId, i.nfoPath, n.nfo FROM items i") ||
+                sql.startsWith("SELECT nfo FROM item_nfos WHERE itemId") && args.firstOrNull() != show
+        }
+        assertEquals("never one by one, but the show's own", emptyList<Pair<String, List<Any?>>>(), oneByOne)
+        assertEquals("all at once", 1, ran.count { (sql, _) -> sql.startsWith("SELECT itemId AS id, nfo FROM item_nfos WHERE itemId IN") })
     }
 
     /**

@@ -14,8 +14,11 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
     /** Numberings read this pass, by show and what they were read for ([Key]). */
     private val read = mutableMapOf<Key, ShowNumbering>()
 
-    /** A show's numbering stays valid while its choice, its order and its NFO do; [absolute] when it holds the show's sequence. */
-    private data class Key(val seriesId: Long, val choice: String?, val placed: String?, val nfo: Int, val absolute: Boolean)
+    /**
+     * A show's numbering stays valid while its choice, its order and its NFO do, the NFO by its sidecars' key
+     * ([ItemEntity.sidecarKey]), written with each NFO read; [absolute] when it holds the show's sequence.
+     */
+    private data class Key(val seriesId: Long, val choice: String?, val placed: String?, val sidecars: String?, val absolute: Boolean)
 
     /**
      * [series]'s numbering, with its episodes from its start when [absolute]; unanswered when TMDB had to be asked and did
@@ -23,7 +26,7 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
      */
     suspend fun of(series: ItemEntity, absolute: Boolean): TmdbAnswer<ShowNumbering> {
         val id = series.tmdbId ?: return TmdbAnswer.Given(ShowNumbering.UNKNOWN)
-        val key = Key(series.id, series.userEpisodeOrder, series.episodeOrder, series.nfo?.hashCode() ?: 0, absolute)
+        val key = Key(series.id, series.userEpisodeOrder, series.episodeOrder, series.sidecarKey, absolute)
         // One read for its sequence serves one without.
         val known = read[key] ?: read[key.copy(absolute = true)]
         if (known != null) return TmdbAnswer.Given(known)
@@ -35,7 +38,7 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
     /** [of], read: null when TMDB had to be asked and did not answer. */
     private suspend fun numbering(series: ItemEntity, id: Int, absolute: Boolean): ShowNumbering? {
         val aired = aired(id) ?: return null
-        val nfo = series.nfoInfo()
+        val nfo = dao.nfoInfo(series.id)
         val groups = (if (wantsGroups(series, nfo, absolute)) listed(id) else dao.episodeOrders(id).filter { it.isGroup }) ?: return null
         val chosen = chosen(series, id, aired, groups, nfo) ?: return null
         val sequence = if (absolute) sequenceOf(id, aired, groups) else emptyList()

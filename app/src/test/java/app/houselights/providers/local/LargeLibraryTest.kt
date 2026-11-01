@@ -67,8 +67,8 @@ class LargeLibraryTest {
             }
             repeat(FILMS) { i ->
                 val playedAt = if (i % 50 == 0) i.toLong() else null
-                val film = item(ItemKind.MOVIE, films, "Film $i", addedAt = i.toLong(), nfo = nfo, lastPlayedAt = playedAt)
-                val id = dao.insert(film.copy(collectionId = sagas[i % SAGAS], year = 1980 + i / SAGAS, tmdbId = 10_000 + i))
+                val film = item(ItemKind.MOVIE, films, "Film $i", addedAt = i.toLong(), withNfo = true, lastPlayedAt = playedAt)
+                val id = dao.insertWithNfo(film.copy(collectionId = sagas[i % SAGAS], year = 1980 + i / SAGAS, tmdbId = 10_000 + i), nfo)
                 // A director of five films each, a cast of thirty out of two thousand actors.
                 val credits = listOf(credit(id, Job.DIRECTOR, 0, i % DIRECTORS)) +
                     (0 until CAST).map { credit(id, Job.CAST, it, DIRECTORS + (i * CAST + it * 7) % ACTORS) }
@@ -87,11 +87,12 @@ class LargeLibraryTest {
                     val season = dao.insert(item(ItemKind.SEASON, shows, "", parentId = series, seriesId = series, season = n + 1))
                     repeat(EPISODES_PER_SEASON) { e ->
                         val played = s % 3 == 0 && n == 0
-                        dao.insert(
+                        dao.insertWithNfo(
                             item(
                                 ItemKind.EPISODE, shows, "Episode $e", parentId = season, seriesId = series, season = n + 1,
-                                episode = e + 1, nfo = nfo, played = played, lastPlayedAt = if (played) (s * 100L + e) else null,
+                                episode = e + 1, withNfo = true, played = played, lastPlayedAt = if (played) (s * 100L + e) else null,
                             ),
+                            nfo,
                         )
                     }
                 }
@@ -116,12 +117,12 @@ class LargeLibraryTest {
         season: Int? = null,
         episode: Int? = null,
         addedAt: Long = 0,
-        nfo: String? = null,
+        withNfo: Boolean = false,
         played: Boolean = false,
         lastPlayedAt: Long? = null,
     ) = ItemEntity(
         kind = kind, sourceId = source, title = title, sortTitle = title.lowercase(), parentId = parentId, seriesId = seriesId,
-        seasonNumber = season, episodeNumber = episode, addedAt = addedAt, nfo = nfo, nfoPath = nfo?.let { "$title.nfo" },
+        seasonNumber = season, episodeNumber = episode, addedAt = addedAt, nfoPath = "$title.nfo".takeIf { withNfo },
         filePath = if (kind == ItemKind.MOVIE || kind == ItemKind.EPISODE) "$title.mkv" else null, played = played,
         lastPlayedAt = lastPlayedAt, genres = listOf("Drame"),
     )
