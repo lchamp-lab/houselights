@@ -135,7 +135,7 @@ private fun ColumnScope.BlockName(name: String, count: String? = null) {
         Text(name, style = Hl.type.group, color = c.content, modifier = Modifier.alignByBaseline())
         count?.let {
             Spacer(Modifier.width(HlSpace.s))
-            Text(it, style = Hl.type.meta, color = c.contentTertiary, modifier = Modifier.alignByBaseline())
+            Text(it, style = Hl.type.meta, color = c.contentSecondary, modifier = Modifier.alignByBaseline())
         }
     }
     Spacer(Modifier.height(HlSpace.m))

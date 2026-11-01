@@ -99,6 +99,7 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.emberLit
 import app.houselights.ui.design.plate
 import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.roomStep
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.screenWidthPx
 import kotlin.math.roundToInt
@@ -175,26 +176,26 @@ internal fun ButtonPlate(
     val surface = modifier.height(height).semantics { if (busy) stateDescription = busyState }
     val words = ButtonWords(text, icon, detail?.let { DetailWords(it, detailLit, detailWhole) }, busy, busyLabel)
     val reserved = reservedWidth(words, reserveFor)
+    val plate = rememberPlate()
     if (emphasis == Emphasis.Primary) {
         val light = remember(c) { c.emberLight() }
         HlFocusSurface(
             onClick = { if (!busy) onClick() },
             look = FocusStyle.frame(
-                rest = Color.Transparent,
+                rest = Clear,
                 restInk = c.onEmber,
-                disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+                disabled = plate.disabled,
                 disabledInk = c.contentTertiary,
             ),
             shape = HlShapes.control,
             modifier = surface,
             enabled = enabled,
         ) { lit ->
-            // A disabled action keeps its well: the light is for what OK starts.
+            // A disabled action takes a secondary one's well: the light is for what OK starts.
             if (enabled) Box(Modifier.matchParentSize().background(light))
             ButtonRow(words, reserved, primary = true, lit = lit, enabled = enabled)
         }
     } else {
-        val plate = rememberPlate()
         HlFocusSurface(
             onClick = { if (!busy) onClick() },
             look = FocusStyle.fill(
@@ -368,13 +369,17 @@ private fun ButtonLabel(text: String) {
     )
 }
 
-/** A plate under a secondary control, read while drawing, its edge, and its well when it cannot act. */
+/** No fill: the main action's plate under its light, a control's well where the room is its ground. */
+private val Clear = ColorProducer { Color.Transparent }
+
+/** A plate under a control, read while drawing, its edge, and its well when it cannot act. */
 @Immutable
 private class PlateLook(val fill: ColorProducer, val disabled: ColorProducer, val edge: BorderStroke?)
 
 /**
- * By ground: on artwork, the picture's own dark ([plate]) set off by its hairline; on the room, glass; on glass,
- * a step up. A control that cannot act sits in a faint well, but keeps its plate over a picture.
+ * By ground: on artwork, the picture's own dark ([plate]) set off by its hairline; on the room, its one step
+ * ([roomStep]); on glass, a step up. A control that cannot act sits in a faint well on glass, in none on the room
+ * (its ink and focus's ring say it), and keeps its plate over a picture.
  */
 @Composable
 private fun rememberPlate(): PlateLook {
@@ -382,7 +387,6 @@ private fun rememberPlate(): PlateLook {
     val ground = LocalGround.current
     val light = LocalAmbient.current
     return remember(c, ground, light) {
-        val well = c.content.copy(alpha = HlAlpha.FILL_FAINT)
         when (ground) {
             Ground.Artwork -> {
                 val plate = ColorProducer { c.plate(light) }
@@ -390,11 +394,12 @@ private fun rememberPlate(): PlateLook {
             }
             Ground.Glass -> {
                 val step = c.content.copy(alpha = HlAlpha.FILL)
+                val well = c.content.copy(alpha = HlAlpha.FILL_FAINT)
                 PlateLook({ step }, { well }, null)
             }
             Ground.Room -> {
-                val glass = c.glass
-                PlateLook({ glass }, { well }, null)
+                val step = c.roomStep
+                PlateLook({ step }, Clear, null)
             }
         }
     }

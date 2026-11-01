@@ -106,7 +106,7 @@ internal fun ColumnScope.WelcomeDoors(choices: List<SourceChoice>, posters: List
         choices.forEachIndexed { i, choice ->
             Column(Modifier.alpha(if (i == focused) 1f else 0f), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                 Text(choice.says, style = Hl.type.body, color = Hl.colors.contentSecondary)
-                Text(choice.tech, style = Hl.type.jaquette, color = Hl.colors.contentTertiary)
+                Text(choice.tech, style = Hl.type.jaquette, color = Hl.colors.contentSecondary)
             }
         }
     }

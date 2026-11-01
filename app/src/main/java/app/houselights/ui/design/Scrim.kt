@@ -45,10 +45,10 @@ object HlScrim {
     )
 
     /**
-     * Quietest text's contrast per band: 4.5:1 over the left half, where lines start; then less, so the
-     * veil eases out before the column ends (the last quarter holds only line ends: overview 4:1, quietest 3:1).
+     * Quietest text's contrast per band: 4.5:1 over the left half, where lines start; then 3.5:1, so the veil
+     * eases out before the column ends while the facts at a line's end keep 4.6:1 in secondary ink.
      */
-    val LEFT_CONTRAST = listOf(4.5f, 4.5f, 3.5f, 3f)
+    val LEFT_CONTRAST = listOf(4.5f, 4.5f, 3.5f, 3.5f)
 
     /** A hero's top veil: 0.74 at the edge, 0.44 at 72 dp, gone at 164 dp. */
     val TOP = listOf(

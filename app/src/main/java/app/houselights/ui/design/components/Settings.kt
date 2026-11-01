@@ -45,13 +45,13 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSettingGroupDefaults
 import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.groundWell
 
 /**
  * A place in the settings' list (DESIGN.md, Secondary screens): its icon and its name alone, grey until it is the
@@ -84,7 +84,8 @@ fun HlNavItem(
                 selected && focused -> c.emberOnLight
                 selected -> c.ember
                 focused -> LocalContentColor.current
-                else -> c.contentTertiary
+                // An icon takes its word's ink.
+                else -> c.contentSecondary
             }
             Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
             Spacer(Modifier.width(HlSpace.s))
@@ -100,8 +101,8 @@ fun HlNavItem(
 }
 
 /**
- * Setting rows on one plate ([HlPlate]), [title] over it ([GroupTitle]): glass on the room, the film's glass in a sheet.
- * Rows lie in it [HlSettingGroupDefaults.inset] from its edge, one after the other, no rule between them.
+ * Setting rows on one plate ([HlPlate]), [title] over it ([GroupTitle]): the room's step on the room, the film's glass
+ * in a sheet. Rows lie in it [HlSettingGroupDefaults.inset] from its edge, one after the other, no rule between them.
  */
 @Composable
 fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -208,7 +209,7 @@ fun HlSettingRow(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
-        disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+        disabled = groundWell(),
         disabledContent = c.contentTertiary,
     ) { focused ->
         // A disabled row keeps its rest colours under focus.

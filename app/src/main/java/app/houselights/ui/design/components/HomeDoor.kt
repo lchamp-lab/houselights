@@ -104,7 +104,7 @@ private fun DoorBand(name: String, icon: ImageVector, note: DoorNote?, progress:
         Modifier
             .fillMaxWidth()
             .height(textRoom(HomeGridDefaults.band))
-            .background(c.ambientDeep)
+            .background(c.glass)
             .drawBehind { drawRect(c.plateEdge, size = Size(size.width, HlSize.hairline.toPx())) },
     ) {
         BandLine(Modifier.align(Alignment.CenterStart).padding(horizontal = HlSpace.s)) {

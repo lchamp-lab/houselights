@@ -97,7 +97,7 @@ fun MetaLine(
                 Text(
                     if (i == 0) genre else ", $genre",
                     style = Hl.type.meta,
-                    color = c.contentTertiary,
+                    color = c.contentSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = if (i == 0) Modifier else Modifier.layoutId(Continued),

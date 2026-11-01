@@ -104,6 +104,7 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.groundPlate
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.groundWell
 import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.rememberGroupMember
 import app.houselights.ui.design.rememberedInGroup
@@ -655,7 +656,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
             Text(
                 it,
                 style = Hl.type.meta,
-                color = Hl.colors.contentTertiary,
+                color = Hl.colors.contentSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -691,7 +692,7 @@ fun AbsentCard(
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.frame(
-            rest = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            rest = groundWell(),
             restInk = c.contentTertiary,
             edge = artworkEdge(c),
         ),

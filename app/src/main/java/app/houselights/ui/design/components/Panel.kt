@@ -54,7 +54,6 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
@@ -68,8 +67,10 @@ import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.groundWell
 import app.houselights.ui.design.plate
 import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.roomStep
 import app.houselights.ui.design.tryRequestFocus
 
 /** How far a panel stands out from the room. */
@@ -135,7 +136,7 @@ fun HlPanelButton(
             rest = if (raised) c.glass else groundStepFill(),
             restInk = c.content,
             edge = BorderStroke(HlSize.hairline, if (lit && enabled) c.emberLight() else SolidColor(c.edge)),
-            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            disabled = groundWell(),
             disabledInk = c.contentTertiary,
         ),
         shape = HlShapes.panel,
@@ -175,9 +176,9 @@ internal fun HlRowSurface(
 
 /**
  * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `plateEdge`, read while drawing:
- * on a field of posters ([PosterField]) its dark, as a plate over a picture; in a sheet the film's [glassPlate]; glass
- * on the bare room. What it holds lies on glass, its words [HlInset.plate] from its sides and [HlInset.card] from its
- * top and foot.
+ * on a field of posters ([PosterField]) its dark, as a plate over a picture; in a sheet the film's [glassPlate]; the
+ * room's one step ([roomStep]) on the bare room. What it holds lies on glass, its words [HlInset.plate] from its
+ * sides and [HlInset.card] from its top and foot.
  */
 @Composable
 fun HlPlate(
@@ -203,7 +204,7 @@ internal fun Modifier.plate(edge: BorderStroke): Modifier {
             val fill = when {
                 inSheet -> c.glassPlate(light)
                 onField -> c.plate(light)
-                else -> c.glass
+                else -> c.roomStep
             }
             drawOutline(area, fill)
         }
@@ -233,7 +234,7 @@ internal fun PlateSlice(first: Boolean, last: Boolean, content: @Composable Colu
             val fill = when {
                 inSheet -> c.glassPlate(light)
                 onField -> c.plate(light)
-                else -> c.glass
+                else -> c.roomStep
             }
             clipRect {
                 translate(left = stroke / 2, top = stroke / 2 - above) {
@@ -505,7 +506,7 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier, height:
             .fillMaxWidth()
             .height(height)
             .clip(HlShapes.badge)
-            .background(c.content.copy(alpha = HlAlpha.FILL_FAINT)),
+            .background(groundStepFill()),
         horizontalArrangement = Arrangement.spacedBy(HlSize.meterGap),
     ) {
         segments.filter { it.fraction > 0f }.forEach { s ->

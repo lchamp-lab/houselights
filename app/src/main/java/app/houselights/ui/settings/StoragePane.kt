@@ -73,7 +73,7 @@ private fun StorageSummary(st: StorageStats?) {
                 Text(
                     stringResource(R.string.storage_cache_limit, formatBytes(it.imageCacheMax)),
                     style = Hl.type.meta,
-                    color = c.contentTertiary,
+                    color = c.contentSecondary,
                     modifier = Modifier.alignByBaseline(),
                 )
             }

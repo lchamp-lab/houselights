@@ -16,7 +16,7 @@ object HlPalette {
     val N8 = Color(0xFF131316)
     val N21 = Color(0xFF33333A)
     val N28 = Color(0xFF45454C)
-    val N36 = Color(0xFF5D5D5D)
+    val N36 = Color(0xFF5D5D63)
     val N57 = Color(0xFF8C8C95)
     val N65 = Color(0xFFA3A3AB)
     val N96 = Color(0xFFF4F4F5)
@@ -42,7 +42,10 @@ data class HlColors(
     /** Primary text: projector white. */
     val content: Color,
     val contentSecondary: Color,
-    /** The quietest text: 5.56:1 on [glass], never on `FILL_STRONG` (`ContrastTest`). */
+    /**
+     * The quietest text, for what is guessed or missing only: joins, placeholders, hints, what cannot act, a film the
+     * library lacks; never a fact (`DesignTokenGuardTest`). 5.56:1 on [glass], never on `FILL_STRONG` (`ContrastTest`).
+     */
     val contentTertiary: Color,
     /** Never for text: the rule of an empty frame, a skeleton. */
     val contentDecorative: Color,
@@ -143,6 +146,9 @@ fun OnArtwork(content: @Composable () -> Unit) {
 @ReadOnlyComposable
 fun groundColor(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.glass else Hl.colors.background
 
+/** The one step over the room, opaque: whatever lies on it, a control at rest, a group's plate, at `FILL` (#161616). */
+val HlColors.roomStep: Color get() = content.copy(alpha = HlAlpha.FILL).compositeOver(background)
+
 /** Fill one step up: `FILL` on the room; `FILL_FAINT` on glass, keeping the quietest text at 4.5:1 there. */
 @Composable
 @ReadOnlyComposable
@@ -152,6 +158,14 @@ fun groundStep(): Float = if (LocalGround.current == Ground.Glass) HlAlpha.FILL_
 @Composable
 @ReadOnlyComposable
 fun groundStepFill(): Color = Hl.colors.content.copy(alpha = groundStep())
+
+/**
+ * The well of what cannot act or is missing: `FILL_FAINT` on glass; none on the room, where a step that faint falls
+ * under video black and would read darker than what can act. Its ink and focus's ring say it.
+ */
+@Composable
+@ReadOnlyComposable
+fun groundWell(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT) else Color.Transparent
 
 /** `content` at [alpha] composited over the ground: a fill as it shows, opaque. */
 @Composable
@@ -165,9 +179,15 @@ fun groundPlate(): Color? = if (LocalGround.current == Ground.Artwork) Hl.colors
 
 /** Opacities by role: fills of `content`, veils of `background`, edges; every translucent layer uses one. */
 object HlAlpha {
-    /** Faint wells: a meter's track, a disabled control, an absent film's card. */
+    /**
+     * The step on glass ([groundStep]): a well there, a meter's track, a field; never on the room, where it falls to 15,
+     * under video black.
+     */
     const val FILL_FAINT = 0.06f
-    /** Fill of a thing on its ground (a placeholder, a control on glass): #161616 on the room, a step a TV still shows. */
+    /**
+     * The one step on the room ([roomStep]): whatever lies on it, a placeholder, a control at rest, a plate, #161616,
+     * a step a TV still shows; a control on glass.
+     */
     const val FILL = 0.09f
     /** A progress line's track beside text. */
     const val FILL_STRONG = 0.2f
