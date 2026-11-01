@@ -23,6 +23,7 @@ import app.houselights.providers.local.Folder
 import app.houselights.providers.local.HeldRow
 import app.houselights.providers.local.ItemKind
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
@@ -147,7 +148,7 @@ private fun HeldItem(line: HeldLine) {
             overflow = TextOverflow.Ellipsis,
         )
         line.path?.let {
-            Spacer(Modifier.height(HlSpace.xs))
+            Spacer(Modifier.height(HlGap.nameToNoteWrapped))
             Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }

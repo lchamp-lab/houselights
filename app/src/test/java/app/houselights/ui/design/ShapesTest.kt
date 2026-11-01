@@ -43,7 +43,7 @@ class ShapesTest {
         // A menu's options inside it.
         assertEquals(HlShapes.panel.radius(), HlShapes.control.radius() + HlMenuDefaults.inset.value, 0f)
         // A group's rows inside its plate.
-        assertEquals(HlShapes.panel.radius(), HlShapes.row.radius() + HlInset.group.value, 0f)
+        assertEquals(HlShapes.panel.radius(), HlShapes.row.radius() + HlSettingGroupDefaults.inset.value, 0f)
         // A mark in the corner of a wide image (LandscapeCard's StatusMark).
         assertEquals(HlShapes.wide.radius(), HlShapes.mark.radius() + HlSpace.xs.value, 0f)
     }

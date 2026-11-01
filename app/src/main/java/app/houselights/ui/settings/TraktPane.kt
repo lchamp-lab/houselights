@@ -5,7 +5,6 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,7 +32,6 @@ import app.houselights.R
 import app.houselights.core.TraktSession
 import app.houselights.providers.trakt.TraktSyncState
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.DeviceCodePlate
@@ -208,7 +206,7 @@ private fun rememberCodeFocus(connecting: Boolean): CodeFocus {
 @Composable
 private fun Account(name: String?, sync: TraktSyncState) {
     val c = Hl.colors
-    HlPlate(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = HlInset.card, vertical = HlInset.plate)) {
+    HlPlate(Modifier.fillMaxWidth()) {
         Row {
             Column(Modifier.weight(1f)) {
                 if (name != null) {

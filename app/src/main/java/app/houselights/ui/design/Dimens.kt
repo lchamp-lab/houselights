@@ -3,6 +3,7 @@ package app.houselights.ui.design
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -50,22 +51,82 @@ object HlShapes {
     val sheet = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
 }
 
-/** Inner padding of containers by kind, so the same kind of thing breathes the same everywhere. */
+/**
+ * Inner padding of containers, four steps, so the same kind of thing breathes the same everywhere: [tight] 8, [plate]
+ * 20, [card] 24, [sheet] 32. A menu's 6 and a group's 4 follow from radii ([HlMenuDefaults], [HlSettingGroupDefaults]).
+ */
 object HlInset {
     /** Results holding a thumbnail. */
     val tight = HlSpace.xs
-    /** Panels and cards. */
+
+    /**
+     * Words from the sides of any plate, whatever it holds (facts, definitions, a status, a table, glass read through, a
+     * code): where a group's rows set theirs, so text keeps one edge down a pane; a status's state from its top.
+     */
+    val plate = 20.dp
+
+    /** Panels and cards all round; a plate's top and foot; words over a picture 400 wide or more. */
     val card = HlSpace.l
     val sheet = HlSpace.xl
+}
 
-    /** A group's plate around its rows: [HlShapes.panel] less [HlShapes.row], so their corners stay parallel. */
-    val group = HlSpace.xxs
+/**
+ * Gaps named by the relation they set (DESIGN.md, Layout), read by components and screens instead of a step of
+ * [HlSpace]: the same relation keeps the same gap from one screen to the next. Box to box (`Trim.Both`) unless said.
+ */
+object HlGap {
+    /** A name to its note on one line: a setting's description, a role under a portrait. */
+    val nameToNote = HlSpace.xxs
 
-    /** A plate of facts ([FactPlate]) from its top and foot, so its words sit as a group's rows do; its sides keep [card]. */
-    val plate = HlSpace.l
+    /** A name to a note that may wrap: wider than the note's own lines, so it never lifts off its name. */
+    val nameToNoteWrapped = HlSpace.xs
 
-    /** A plate read in a sheet ([ReadingPlate], a technical sheet's block): its words from its sides; a status's from its top. */
-    val reading = HlSpace.fact
+    /** A label over its value (a plate's fact, the settings door's state). */
+    val labelToValue = HlSpace.xs
+
+    /** A screen's or a task's title to its content. */
+    val headToContent = HlSpace.l
+
+    /** A screen's title to a line that belongs to it: a wall's info line, the film under « Affiche ». */
+    val headToOwnLine = HlSpace.xs
+
+    /** Between the lines of one block: facts under a title, a progress under facts. */
+    val inBlock = HlSpace.s
+
+    /** Between bands under a fixed hero (« À regarder »'s rows); a titled group from what precedes it. */
+    val band = HlSpace.l
+
+    /** Between the blocks of a page that scrolls by blocks (a detail page, search). */
+    val block = HlSpace.xl
+
+    /** Between plates without a title that follow one another. */
+    val plates = HlSpace.m
+
+    /** Between facts or formats on one line. */
+    val fact = HlSpace.fact
+
+    /** A 20 icon to its word in a row, a list, a menu or a field. */
+    val iconToWord = HlSpace.s
+
+    /** An icon to its word inside a control: a button, a key, the case's action. */
+    val iconInControl = HlSpace.xs
+
+    /** A dot, a light or a mark to its word. */
+    val markToWord = HlSpace.xs
+
+    /** A glyph in a line of facts (a star, a check) to its word. */
+    val glyphToWord = HlSpace.xxs
+
+    /** A picture to its caption. */
+    val imageToCaption = HlSpace.s
+
+    /** One paragraph to the next: more than a line's room. */
+    val paragraph = HlSpace.m
+
+    /** A sentence's first baseline under its title's: the title's line height (`subject` 32, `headline` 40). */
+    @Composable
+    @ReadOnlyComposable
+    fun titleToBody(title: TextStyle): Dp = textRoom(title)
 }
 
 object HlSize {
@@ -446,13 +507,18 @@ internal object VoletDefaults {
 internal object HlSettingRowDefaults {
     val valueWidth = 360.dp
 
-    /** A name over its description fills a [HlSize.row] with this room. */
-    val paddingV = 6.dp
+    /** Above and below a row's words; a name over its description is 34.4 tall, so [HlSize.row] holds it at the default size. */
+    val paddingV = HlSpace.xs
+}
+
+/** A group's plate around its rows: [HlShapes.panel] less [HlShapes.row], so their corners stay parallel. */
+internal object HlSettingGroupDefaults {
+    val inset = HlSpace.xxs
 }
 
 /** A [Showcase]'s words: from its sides and its foot, and where its name sets, over its posters' melted foot. */
 internal object ShowcaseDefaults {
-    val inset = 20.dp
+    val inset = HlInset.plate
     val nameTop = 126.dp
 }
 
@@ -499,11 +565,6 @@ internal object TechSpecsDefaults {
  * Module 6.5 wide: whole pixels at 1080p (13) and 4K (26), so no module edge blurs. 29 modules plus the
  * 4-module quiet zone readers need make 240.5, which a phone reads from the sofa.
  */
-/** A code to type elsewhere ([app.houselights.ui.design.components.DeviceCodePlate]): its words from the plate's edge. */
-internal object DeviceCodeDefaults {
-    val inset = 28.dp
-}
-
 internal object QrCodeDefaults {
     val module = 6.5.dp
 

@@ -59,6 +59,7 @@ import app.houselights.core.ArtworkOrigin
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -188,7 +189,7 @@ private fun PosterSheet(sheet: Sheet, preview: ArtworkOption?, body: @Composable
         Row(Modifier.zIndex(1f), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.width(HlLayout.choicePrint)) {
                 TaskTitle(stringResource(ArtworkKind.POSTER.title))
-                Spacer(Modifier.height(HlSpace.xs))
+                Spacer(Modifier.height(HlGap.headToOwnLine))
                 Text(
                     sheet.item?.title.orEmpty(),
                     style = Hl.type.meta,

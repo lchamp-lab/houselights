@@ -55,7 +55,7 @@ private fun StorageSummary(st: StorageStats?) {
     val c = Hl.colors
     val dash = stringResource(R.string.placeholder_none)
     // A line's room under the figures, as the total keeps its own above the meter.
-    val room = PaddingValues(start = HlInset.card, end = HlInset.card, top = HlInset.plate, bottom = HlSpace.xl)
+    val room = PaddingValues(start = HlInset.plate, end = HlInset.plate, top = HlInset.card, bottom = HlSpace.xl)
     HlPlate(Modifier.fillMaxWidth(), padding = room) {
         Row(Modifier.fillMaxWidth()) {
             val total = st?.let { formatBytes(it.total) } ?: dash

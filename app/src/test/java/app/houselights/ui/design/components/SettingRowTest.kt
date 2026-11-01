@@ -10,7 +10,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlSettingGroupDefaults
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
@@ -63,8 +63,8 @@ class SettingRowTest {
         val first = compose.onNodeWithText("Première").getUnclippedBoundsInRoot()
         val second = compose.onNodeWithText("Seconde").getUnclippedBoundsInRoot()
         assertEquals("one after the other", first.bottom.value, second.top.value, 0.5f)
-        assertEquals("the group's inset", HlInset.group.value, (first.left - plate.left).value, 0.5f)
-        assertEquals("the group's inset", HlInset.group.value, (first.top - plate.top).value, 0.5f)
-        assertEquals("the group's inset", HlInset.group.value, (plate.bottom - second.bottom).value, 0.5f)
+        assertEquals("the group's inset", HlSettingGroupDefaults.inset.value, (first.left - plate.left).value, 0.5f)
+        assertEquals("the group's inset", HlSettingGroupDefaults.inset.value, (first.top - plate.top).value, 0.5f)
+        assertEquals("the group's inset", HlSettingGroupDefaults.inset.value, (plate.bottom - second.bottom).value, 0.5f)
     }
 }

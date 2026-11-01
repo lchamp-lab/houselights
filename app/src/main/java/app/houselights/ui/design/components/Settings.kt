@@ -42,7 +42,7 @@ import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlSettingGroupDefaults
 import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -95,13 +95,13 @@ fun HlNavItem(
 
 /**
  * Setting rows on one plate ([HlPlate]), [title] in `group` over it: glass on the room, the film's glass in a sheet.
- * Rows lie in it [HlInset.group] from its edge, one after the other, no rule between them.
+ * Rows lie in it [HlSettingGroupDefaults.inset] from its edge, one after the other, no rule between them.
  */
 @Composable
 fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier.fillMaxWidth()) {
         if (title != null) GroupTitle(title)
-        HlPlate(Modifier.fillMaxWidth(), padding = PaddingValues(HlInset.group), content = content)
+        HlPlate(Modifier.fillMaxWidth(), padding = PaddingValues(HlSettingGroupDefaults.inset), content = content)
     }
 }
 

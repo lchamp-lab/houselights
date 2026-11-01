@@ -45,7 +45,7 @@ import app.houselights.ui.design.EdgeScroll
 import app.houselights.ui.design.Gradation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -213,7 +213,7 @@ fun JaquetteLine(facts: List<Pair<String, String>>, modifier: Modifier = Modifie
 /** Definitions on a plate (About's credits): each [PlateDefinition] a line, [HlSpace.m] apart. Nothing in it takes focus. */
 @Composable
 fun DefinitionPlate(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    HlPlate(modifier.fillMaxWidth(), padding = PaddingValues(horizontal = HlInset.card, vertical = HlInset.plate)) {
+    HlPlate(modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m), content = content)
     }
 }
@@ -242,7 +242,7 @@ fun PlateDefinition(label: String, modifier: Modifier = Modifier, note: String? 
                 note,
                 style = Hl.type.meta,
                 color = c.contentSecondary,
-                modifier = Modifier.padding(start = PaneDefaults.plateLabel, top = HlSpace.xs),
+                modifier = Modifier.padding(start = PaneDefaults.plateLabel, top = HlGap.nameToNoteWrapped),
             )
         }
     }
@@ -278,7 +278,7 @@ fun MeterFact(
             Spacer(Modifier.width(HlSpace.xs))
             Text(label, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Spacer(Modifier.height(HlSpace.xs))
+        Spacer(Modifier.height(HlGap.labelToValue))
         Text(value, style = if (technical) Hl.type.spec else Hl.type.entry, color = c.content, maxLines = 1)
     }
 }

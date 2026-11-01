@@ -3,7 +3,6 @@ package app.houselights.ui.design.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.PaneDefaults
@@ -36,7 +35,7 @@ fun FactPlate(
     gap: Dp = HlSpace.xxl,
     facts: @Composable RowScope.() -> Unit,
 ) {
-    HlPlate(modifier.fillMaxWidth(), padding = PaddingValues(horizontal = HlInset.card, vertical = HlInset.plate)) {
+    HlPlate(modifier.fillMaxWidth()) {
         Row(horizontalArrangement = Arrangement.spacedBy(gap), content = facts)
         if (note != null) {
             Spacer(Modifier.height(HlSpace.l))
@@ -62,11 +61,11 @@ fun PlateFact(
     val c = Hl.colors
     Column(modifier) {
         Text(label, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(HlSpace.xs))
+        Spacer(Modifier.height(HlGap.labelToValue))
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (state != null) {
                 StateDot(state)
-                Spacer(Modifier.width(HlSpace.xs))
+                Spacer(Modifier.width(HlGap.markToWord))
             }
             Text(
                 value,

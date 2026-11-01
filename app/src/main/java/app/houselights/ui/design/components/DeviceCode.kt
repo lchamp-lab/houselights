@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.tv.material3.Text
-import app.houselights.ui.design.DeviceCodeDefaults
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import kotlin.math.max
 
@@ -33,7 +33,8 @@ fun DeviceCodePlate(
     asking: String? = null,
 ) {
     val c = Hl.colors
-    HlPlate(modifier.fillMaxWidth().focusable(), padding = PaddingValues(DeviceCodeDefaults.inset)) {
+    // Its words where any plate's are; the QR code keeps its own quiet zone.
+    HlPlate(modifier.fillMaxWidth().focusable(), padding = PaddingValues(horizontal = HlInset.plate, vertical = HlInset.card)) {
         Layout(
             contents = listOf(
                 { Text(instructions, style = Hl.type.body, color = c.contentSecondary) },

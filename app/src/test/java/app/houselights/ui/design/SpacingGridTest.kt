@@ -16,8 +16,8 @@ class SpacingGridTest {
             }
 
     @Test
-    fun spaceAndInsetsAreOnTheGrid() {
-        val all = measures(HlSpace) + measures(HlInset)
+    fun spaceInsetsAndGapsAreOnTheGrid() {
+        val all = measures(HlSpace) + measures(HlInset) + measures(HlGap)
         assertTrue("No measures found", all.isNotEmpty())
         all.forEach { (name, value) -> assertEquals("$name is $value dp", 0f, value % 4f) }
     }
